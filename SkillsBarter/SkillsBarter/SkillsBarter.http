@@ -1,0 +1,6 @@
+@SkillsBarter_HostAddress = http://localhost:5003
+
+GET {{SkillsBarter_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
