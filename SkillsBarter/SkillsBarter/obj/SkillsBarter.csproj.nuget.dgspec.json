@@ -1,27 +1,26 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Stanimir\\source\\repos\\SkillsBarter\\SkillsBarter\\SkillsBarter\\SkillsBarter.csproj": {}
+    "/home/boyan/RiderProjects/SkillsBarter/SkillsBarter/SkillsBarter/SkillsBarter.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Stanimir\\source\\repos\\SkillsBarter\\SkillsBarter\\SkillsBarter\\SkillsBarter.csproj": {
+    "/home/boyan/RiderProjects/SkillsBarter/SkillsBarter/SkillsBarter/SkillsBarter.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Stanimir\\source\\repos\\SkillsBarter\\SkillsBarter\\SkillsBarter\\SkillsBarter.csproj",
+        "projectUniqueName": "/home/boyan/RiderProjects/SkillsBarter/SkillsBarter/SkillsBarter/SkillsBarter.csproj",
         "projectName": "SkillsBarter",
-        "projectPath": "C:\\Users\\Stanimir\\source\\repos\\SkillsBarter\\SkillsBarter\\SkillsBarter\\SkillsBarter.csproj",
-        "packagesPath": "C:\\Users\\Stanimir\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Stanimir\\source\\repos\\SkillsBarter\\SkillsBarter\\SkillsBarter\\obj\\",
+        "projectPath": "/home/boyan/RiderProjects/SkillsBarter/SkillsBarter/SkillsBarter/SkillsBarter.csproj",
+        "packagesPath": "/home/boyan/.nuget/packages/",
+        "outputPath": "/home/boyan/RiderProjects/SkillsBarter/SkillsBarter/SkillsBarter/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\Users\\Stanimir\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+          "/home/boyan/.nuget/NuGet/NuGet.Config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
-          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "/usr/lib/dotnet/library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -34,15 +33,35 @@
           "warnAsError": [
             "NU1605"
           ]
-        }
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.100"
       },
       "frameworks": {
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "Microsoft.AspNetCore.Identity.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[8.0.*, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[9.0.10, )"
+            },
             "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": {
               "target": "Package",
               "version": "[1.19.5, )"
+            },
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
+              "target": "Package",
+              "version": "[9.0.4, )"
             },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
@@ -60,6 +79,12 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.NETCore.App.Host.linux-x64",
+              "version": "[8.0.21, 8.0.21]"
+            }
+          ],
           "frameworkReferences": {
             "Microsoft.AspNetCore.App": {
               "privateAssets": "none"
@@ -68,7 +93,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.100/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/9.0.111/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
