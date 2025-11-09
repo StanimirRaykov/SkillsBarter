@@ -1,0 +1,39 @@
+# Build results
+bin/
+obj/
+out/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.swp
+*~
+
+# User secrets - NEVER commit these!
+**/appsettings.Development.json
+**/appsettings.Production.json
+**/secrets.json
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db

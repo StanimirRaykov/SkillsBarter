@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SkillsBarter", "SkillsBarter.csproj", "{4C440A25-B733-9061-0204-F8DE445CF822}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4C440A25-B733-9061-0204-F8DE445CF822}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4C440A25-B733-9061-0204-F8DE445CF822}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4C440A25-B733-9061-0204-F8DE445CF822}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4C440A25-B733-9061-0204-F8DE445CF822}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {D55CC507-EC84-4506-AA7C-00A465D57EFF}
+	EndGlobalSection
+EndGlobal
