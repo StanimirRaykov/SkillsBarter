@@ -275,3 +275,5 @@
 /home/boyan/RiderProjects/SkillsBarter/SkillsBarter/SkillsBarter/bin/Debug/net8.0/Microsoft.AspNetCore.Identity.EntityFrameworkCore.dll
 /home/boyan/RiderProjects/SkillsBarter/SkillsBarter/SkillsBarter/bin/Debug/net8.0/Microsoft.Extensions.Identity.Core.dll
 /home/boyan/RiderProjects/SkillsBarter/SkillsBarter/SkillsBarter/bin/Debug/net8.0/Microsoft.Extensions.Identity.Stores.dll
+/home/boyan/RiderProjects/SkillsBarter/SkillsBarter/SkillsBarter/bin/Debug/net8.0/Microsoft.AspNetCore.Authentication.Facebook.dll
+/home/boyan/RiderProjects/SkillsBarter/SkillsBarter/SkillsBarter/bin/Debug/net8.0/Microsoft.AspNetCore.Authentication.Google.dll
