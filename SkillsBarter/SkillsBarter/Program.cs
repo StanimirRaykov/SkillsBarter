@@ -1,7 +1,11 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using SkillsBarter.Data;
 using SkillsBarter.Models;
+using SkillsBarter.Services;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,30 +34,80 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-var authBuilder = builder.Services.AddAuthentication();
+// Configure JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("Jwt");
+var secretKey = jwtSettings["SecretKey"];
 
-var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
-var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
-if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientSecret))
+if (!string.IsNullOrEmpty(secretKey))
 {
-    authBuilder.AddGoogle(options =>
+    var key = Encoding.ASCII.GetBytes(secretKey);
+    builder.Services.AddAuthentication(options =>
     {
-        options.ClientId = googleClientId;
-        options.ClientSecret = googleClientSecret;
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ValidateIssuer = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidateAudience = true,
+            ValidAudience = jwtSettings["Audience"],
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+    })
+    .AddGoogle(options =>
+    {
+        var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+        var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+        if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientSecret))
+        {
+            options.ClientId = googleClientId;
+            options.ClientSecret = googleClientSecret;
+        }
+    })
+    .AddFacebook(options =>
+    {
+        var facebookAppId = builder.Configuration["Authentication:Facebook:AppId"];
+        var facebookAppSecret = builder.Configuration["Authentication:Facebook:AppSecret"];
+        if (!string.IsNullOrEmpty(facebookAppId) && !string.IsNullOrEmpty(facebookAppSecret))
+        {
+            options.AppId = facebookAppId;
+            options.AppSecret = facebookAppSecret;
+        }
     });
 }
-
-// Configure Facebook OAuth
-var facebookAppId = builder.Configuration["Authentication:Facebook:AppId"];
-var facebookAppSecret = builder.Configuration["Authentication:Facebook:AppSecret"];
-if (!string.IsNullOrEmpty(facebookAppId) && !string.IsNullOrEmpty(facebookAppSecret))
+else
 {
-    authBuilder.AddFacebook(options =>
-    {
-        options.AppId = facebookAppId;
-        options.AppSecret = facebookAppSecret;
-    });
+    builder.Services.AddAuthentication()
+        .AddGoogle(options =>
+        {
+            var googleClientId = builder.Configuration["Authentication:Google:ClientId"];
+            var googleClientSecret = builder.Configuration["Authentication:Google:ClientSecret"];
+            if (!string.IsNullOrEmpty(googleClientId) && !string.IsNullOrEmpty(googleClientSecret))
+            {
+                options.ClientId = googleClientId;
+                options.ClientSecret = googleClientSecret;
+            }
+        })
+        .AddFacebook(options =>
+        {
+            var facebookAppId = builder.Configuration["Authentication:Facebook:AppId"];
+            var facebookAppSecret = builder.Configuration["Authentication:Facebook:AppSecret"];
+            if (!string.IsNullOrEmpty(facebookAppId) && !string.IsNullOrEmpty(facebookAppSecret))
+            {
+                options.AppId = facebookAppId;
+                options.AppSecret = facebookAppSecret;
+            }
+        });
 }
+
+// Register JWT Token Service
+builder.Services.AddScoped<ITokenService, JwtTokenService>();
 
 // Add CORS for frontend applications
 builder.Services.AddCors(options =>

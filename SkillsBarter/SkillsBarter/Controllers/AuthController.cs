@@ -2,9 +2,12 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.Facebook;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using SkillsBarter.DTOs;
 using SkillsBarter.Models;
+using SkillsBarter.Services;
 
 namespace SkillsBarter.Controllers;
 
@@ -14,11 +17,19 @@ public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly ITokenService _tokenService;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager)
+    public AuthController(
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
+        ITokenService tokenService,
+        ILogger<AuthController> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
+        _tokenService = tokenService;
+        _logger = logger;
     }
 
     [HttpGet("login-google")]
@@ -70,9 +81,8 @@ public class AuthController : ControllerBase
         var name = authResult.Principal?.FindFirst(ClaimTypes.Name)?.Value;
 
         if (string.IsNullOrEmpty(email))
-            return BadRequest(new { error = "Email not provided by OAuth provider" });
+            return BadRequest(new AuthResponse { Success = false, Message = "Email not provided by OAuth provider" });
 
-        // Find or create user
         var user = await _userManager.FindByEmailAsync(email);
 
         if (user == null)
@@ -82,51 +92,176 @@ public class AuthController : ControllerBase
                 Id = Guid.NewGuid(),
                 UserName = email,
                 Email = email,
+                Name = name ?? email.Split('@')[0],
                 EmailConfirmed = true,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
             };
 
             var createResult = await _userManager.CreateAsync(user);
             if (!createResult.Succeeded)
-                return BadRequest(new { errors = createResult.Errors });
+            {
+                var errors = createResult.Errors.Select(e => e.Description).ToList();
+                return BadRequest(new AuthResponse { Success = false, Message = "Failed to create user", Errors = errors });
+            }
+
+            _logger.LogInformation($"New user created via OAuth: {user.Email}");
+        }
+        else
+        {
+            if (string.IsNullOrEmpty(user.Name) && !string.IsNullOrEmpty(name))
+            {
+                user.Name = name;
+                user.UpdatedAt = DateTime.UtcNow;
+                await _userManager.UpdateAsync(user);
+            }
         }
 
-        await _signInManager.SignInAsync(user, isPersistent: false);
+        _logger.LogInformation($"User {user.Email} logged in via OAuth");
 
-        // TODO: Generate JWT token here for API authentication
-        return Ok(new
+        // Generate JWT token for API authentication
+        var token = _tokenService.GenerateAccessToken(user);
+
+        return Ok(new AuthResponse
         {
-            success = true,
-            message = "Successfully authenticated",
-            user = new
+            Success = true,
+            Message = "Successfully authenticated via OAuth",
+            Token = token,
+            User = MapToUserDto(user)
+        });
+    }
+
+    [HttpPost("register")]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(new AuthResponse { Success = false, Message = "Email and password are required" });
+
+        if (request.Password != request.ConfirmPassword)
+            return BadRequest(new AuthResponse { Success = false, Message = "Passwords do not match" });
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new AuthResponse { Success = false, Message = "Name is required" });
+
+        var existingUser = await _userManager.FindByEmailAsync(request.Email);
+        if (existingUser != null)
+            return BadRequest(new AuthResponse { Success = false, Message = "User with this email already exists" });
+
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = request.Email,
+            Email = request.Email,
+            Name = request.Name,
+            Description = request.Description,
+            EmailConfirmed = false,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var result = await _userManager.CreateAsync(user, request.Password);
+
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.Select(e => e.Description).ToList();
+            return BadRequest(new AuthResponse
             {
-                id = user.Id,
-                email = user.Email,
-                userName = user.UserName
-            }
+                Success = false,
+                Message = "Failed to create user",
+                Errors = errors
+            });
+        }
+
+        _logger.LogInformation($"User {user.Email} registered successfully");
+
+        // Generate JWT token
+        var token = _tokenService.GenerateAccessToken(user);
+
+        return Ok(new AuthResponse
+        {
+            Success = true,
+            Message = "User registered successfully",
+            Token = token,
+            User = MapToUserDto(user)
+        });
+    }
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(new AuthResponse { Success = false, Message = "Email and password are required" });
+
+        // Find user by email
+        var user = await _userManager.FindByEmailAsync(request.Email);
+        if (user == null)
+            return Unauthorized(new AuthResponse { Success = false, Message = "Invalid email or password" });
+
+        // Check password
+        var passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
+        if (!passwordValid)
+        {
+            _logger.LogWarning($"Failed login attempt for user {request.Email}");
+            return Unauthorized(new AuthResponse { Success = false, Message = "Invalid email or password" });
+        }
+
+        _logger.LogInformation($"User {user.Email} logged in successfully");
+
+        // Generate JWT token
+        var token = _tokenService.GenerateAccessToken(user);
+
+        return Ok(new AuthResponse
+        {
+            Success = true,
+            Message = "Login successful",
+            Token = token,
+            User = MapToUserDto(user)
         });
     }
 
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout()
+    [Authorize]
+    public IActionResult Logout()
     {
-        await _signInManager.SignOutAsync();
-        return Ok(new { message = "Successfully logged out" });
+        // With JWT, logout is handled client-side by removing the token
+        // Optionally implement token blacklist for immediate invalidation
+        _logger.LogInformation($"User logged out");
+        return Ok(new { success = true, message = "Successfully logged out. Please remove the token from client." });
     }
 
     [HttpGet("me")]
+    [Authorize]
     public async Task<IActionResult> GetCurrentUser()
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null)
-            return Unauthorized();
+            return Unauthorized(new AuthResponse { Success = false, Message = "User not found" });
 
-        return Ok(new
+        return Ok(new AuthResponse
         {
-            id = user.Id,
-            email = user.Email,
-            userName = user.UserName,
-            createdAt = user.CreatedAt
+            Success = true,
+            User = MapToUserDto(user)
         });
+    }
+
+    private UserDto MapToUserDto(ApplicationUser user)
+    {
+        return new UserDto
+        {
+            Id = user.Id,
+            Email = user.Email ?? string.Empty,
+            UserName = user.UserName ?? string.Empty,
+            Name = user.Name,
+            Description = user.Description,
+            IsModerator = user.IsModerator,
+            CreatedAt = user.CreatedAt,
+            EmailConfirmed = user.EmailConfirmed
+        };
     }
 }
