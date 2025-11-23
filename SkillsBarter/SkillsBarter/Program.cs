@@ -109,6 +109,9 @@ else
 // Register JWT Token Service
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
 
+// Register Offer Service
+builder.Services.AddScoped<IOfferService, OfferService>();
+
 // Add CORS for frontend applications
 builder.Services.AddCors(options =>
 {

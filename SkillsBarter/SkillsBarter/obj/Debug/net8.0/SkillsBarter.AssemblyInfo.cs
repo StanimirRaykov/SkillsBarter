@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SkillsBarter")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+319c3c5f252308b8c56a6b56f536d0b0fba5b161")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+07dc52100d9d20a888a117fbdd30cf140a56b85f")]
 [assembly: System.Reflection.AssemblyProductAttribute("SkillsBarter")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SkillsBarter")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
