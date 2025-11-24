@@ -8,13 +8,15 @@
     ".NETCoreApp,Version=v8.0": {
       "SkillsBarter/1.0.0": {
         "dependencies": {
-          "Microsoft.AspNetCore.Authentication.Facebook": "8.0.21",
-          "Microsoft.AspNetCore.Authentication.Google": "8.0.21",
-          "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "8.0.21",
+          "Microsoft.AspNetCore.Authentication.Facebook": "8.0.22",
+          "Microsoft.AspNetCore.Authentication.Google": "8.0.22",
+          "Microsoft.AspNetCore.Authentication.JwtBearer": "8.0.22",
+          "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "8.0.22",
           "Microsoft.EntityFrameworkCore.Design": "9.0.10",
           "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": "1.19.5",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "9.0.4",
-          "Swashbuckle.AspNetCore": "6.4.0"
+          "Swashbuckle.AspNetCore": "6.4.0",
+          "System.IdentityModel.Tokens.Jwt": "7.4.0"
         },
         "runtime": {
           "SkillsBarter.dll": {}
@@ -28,50 +30,61 @@
           }
         }
       },
-      "Microsoft.AspNetCore.Authentication.Facebook/8.0.21": {
+      "Microsoft.AspNetCore.Authentication.Facebook/8.0.22": {
         "runtime": {
           "lib/net8.0/Microsoft.AspNetCore.Authentication.Facebook.dll": {
-            "assemblyVersion": "8.0.21.0",
-            "fileVersion": "8.0.2125.47515"
+            "assemblyVersion": "8.0.22.0",
+            "fileVersion": "8.0.2225.52808"
           }
         }
       },
-      "Microsoft.AspNetCore.Authentication.Google/8.0.21": {
+      "Microsoft.AspNetCore.Authentication.Google/8.0.22": {
         "runtime": {
           "lib/net8.0/Microsoft.AspNetCore.Authentication.Google.dll": {
-            "assemblyVersion": "8.0.21.0",
-            "fileVersion": "8.0.2125.47515"
+            "assemblyVersion": "8.0.22.0",
+            "fileVersion": "8.0.2225.52808"
           }
         }
       },
-      "Microsoft.AspNetCore.Cryptography.Internal/8.0.21": {
+      "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.22": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Protocols.OpenIdConnect": "7.1.2"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.AspNetCore.Authentication.JwtBearer.dll": {
+            "assemblyVersion": "8.0.22.0",
+            "fileVersion": "8.0.2225.52808"
+          }
+        }
+      },
+      "Microsoft.AspNetCore.Cryptography.Internal/8.0.22": {
         "runtime": {
           "lib/net8.0/Microsoft.AspNetCore.Cryptography.Internal.dll": {
             "assemblyVersion": "8.0.0.0",
-            "fileVersion": "8.0.2125.47515"
+            "fileVersion": "8.0.2225.52808"
           }
         }
       },
-      "Microsoft.AspNetCore.Cryptography.KeyDerivation/8.0.21": {
+      "Microsoft.AspNetCore.Cryptography.KeyDerivation/8.0.22": {
         "dependencies": {
-          "Microsoft.AspNetCore.Cryptography.Internal": "8.0.21"
+          "Microsoft.AspNetCore.Cryptography.Internal": "8.0.22"
         },
         "runtime": {
           "lib/net8.0/Microsoft.AspNetCore.Cryptography.KeyDerivation.dll": {
             "assemblyVersion": "8.0.0.0",
-            "fileVersion": "8.0.2125.47515"
+            "fileVersion": "8.0.2225.52808"
           }
         }
       },
-      "Microsoft.AspNetCore.Identity.EntityFrameworkCore/8.0.21": {
+      "Microsoft.AspNetCore.Identity.EntityFrameworkCore/8.0.22": {
         "dependencies": {
           "Microsoft.EntityFrameworkCore.Relational": "9.0.10",
-          "Microsoft.Extensions.Identity.Stores": "8.0.21"
+          "Microsoft.Extensions.Identity.Stores": "8.0.22"
         },
         "runtime": {
           "lib/net8.0/Microsoft.AspNetCore.Identity.EntityFrameworkCore.dll": {
-            "assemblyVersion": "8.0.21.0",
-            "fileVersion": "8.0.2125.47515"
+            "assemblyVersion": "8.0.22.0",
+            "fileVersion": "8.0.2225.52808"
           }
         }
       },
@@ -500,29 +513,29 @@
           }
         }
       },
-      "Microsoft.Extensions.Identity.Core/8.0.21": {
+      "Microsoft.Extensions.Identity.Core/8.0.22": {
         "dependencies": {
-          "Microsoft.AspNetCore.Cryptography.KeyDerivation": "8.0.21",
+          "Microsoft.AspNetCore.Cryptography.KeyDerivation": "8.0.22",
           "Microsoft.Extensions.Logging": "9.0.10",
           "Microsoft.Extensions.Options": "9.0.10"
         },
         "runtime": {
           "lib/net8.0/Microsoft.Extensions.Identity.Core.dll": {
             "assemblyVersion": "8.0.0.0",
-            "fileVersion": "8.0.2125.47515"
+            "fileVersion": "8.0.2225.52808"
           }
         }
       },
-      "Microsoft.Extensions.Identity.Stores/8.0.21": {
+      "Microsoft.Extensions.Identity.Stores/8.0.22": {
         "dependencies": {
           "Microsoft.Extensions.Caching.Abstractions": "9.0.10",
-          "Microsoft.Extensions.Identity.Core": "8.0.21",
+          "Microsoft.Extensions.Identity.Core": "8.0.22",
           "Microsoft.Extensions.Logging": "9.0.10"
         },
         "runtime": {
           "lib/net8.0/Microsoft.Extensions.Identity.Stores.dll": {
             "assemblyVersion": "8.0.0.0",
-            "fileVersion": "8.0.2125.47515"
+            "fileVersion": "8.0.2225.52808"
           }
         }
       },
@@ -568,6 +581,71 @@
           "lib/net8.0/Microsoft.Extensions.Primitives.dll": {
             "assemblyVersion": "9.0.0.0",
             "fileVersion": "9.0.1025.47515"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.Abstractions/7.4.0": {
+        "runtime": {
+          "lib/net8.0/Microsoft.IdentityModel.Abstractions.dll": {
+            "assemblyVersion": "7.4.0.0",
+            "fileVersion": "7.4.0.50226"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.JsonWebTokens/7.4.0": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Tokens": "7.4.0"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.IdentityModel.JsonWebTokens.dll": {
+            "assemblyVersion": "7.4.0.0",
+            "fileVersion": "7.4.0.50226"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.Logging/7.4.0": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Abstractions": "7.4.0"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.IdentityModel.Logging.dll": {
+            "assemblyVersion": "7.4.0.0",
+            "fileVersion": "7.4.0.50226"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.Protocols/7.1.2": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Logging": "7.4.0",
+          "Microsoft.IdentityModel.Tokens": "7.4.0"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.IdentityModel.Protocols.dll": {
+            "assemblyVersion": "7.1.2.0",
+            "fileVersion": "7.1.2.41121"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.Protocols.OpenIdConnect/7.1.2": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Protocols": "7.1.2",
+          "System.IdentityModel.Tokens.Jwt": "7.4.0"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.IdentityModel.Protocols.OpenIdConnect.dll": {
+            "assemblyVersion": "7.1.2.0",
+            "fileVersion": "7.1.2.41121"
+          }
+        }
+      },
+      "Microsoft.IdentityModel.Tokens/7.4.0": {
+        "dependencies": {
+          "Microsoft.IdentityModel.Logging": "7.4.0"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.IdentityModel.Tokens.dll": {
+            "assemblyVersion": "7.4.0.0",
+            "fileVersion": "7.4.0.50226"
           }
         }
       },
@@ -730,6 +808,18 @@
           }
         }
       },
+      "System.IdentityModel.Tokens.Jwt/7.4.0": {
+        "dependencies": {
+          "Microsoft.IdentityModel.JsonWebTokens": "7.4.0",
+          "Microsoft.IdentityModel.Tokens": "7.4.0"
+        },
+        "runtime": {
+          "lib/net8.0/System.IdentityModel.Tokens.Jwt.dll": {
+            "assemblyVersion": "7.4.0.0",
+            "fileVersion": "7.4.0.50226"
+          }
+        }
+      },
       "System.IO.Pipelines/9.0.10": {
         "runtime": {
           "lib/net8.0/System.IO.Pipelines.dll": {
@@ -788,40 +878,47 @@
       "path": "humanizer.core/2.14.1",
       "hashPath": "humanizer.core.2.14.1.nupkg.sha512"
     },
-    "Microsoft.AspNetCore.Authentication.Facebook/8.0.21": {
+    "Microsoft.AspNetCore.Authentication.Facebook/8.0.22": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-bqKUgqFYo31UKaECrWj4enSbUsu8/3IDpMwfTSaathweLgyytv29oGP4Ra7jmTvVW54HoEigRCqZTDP189Qydg==",
-      "path": "microsoft.aspnetcore.authentication.facebook/8.0.21",
-      "hashPath": "microsoft.aspnetcore.authentication.facebook.8.0.21.nupkg.sha512"
+      "sha512": "sha512-X18x/hxr6hOU/qPA44Y5VYA+BvQpQ2xO8gO9kXTxxlZX1lHVe1TKIHvlL2yCcYGzm2FxJzQqgUBrmzPLe9WYLw==",
+      "path": "microsoft.aspnetcore.authentication.facebook/8.0.22",
+      "hashPath": "microsoft.aspnetcore.authentication.facebook.8.0.22.nupkg.sha512"
     },
-    "Microsoft.AspNetCore.Authentication.Google/8.0.21": {
+    "Microsoft.AspNetCore.Authentication.Google/8.0.22": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-50cz+hOT+UCkvqYZQbEwsGcJzkLmknxZ6UNXkNF7cvpM4JfMsJJ0WDleV4gsqN0gX0QoHfzY5AUv6CwYyjr2sQ==",
-      "path": "microsoft.aspnetcore.authentication.google/8.0.21",
-      "hashPath": "microsoft.aspnetcore.authentication.google.8.0.21.nupkg.sha512"
+      "sha512": "sha512-NXmczBh2Ze0x+HbMXIlBHoG+8y6NZHA1SA8vNVAUJdlw1B4w78ZJ3L5dnNNfstBs35bGOdG5F2TSp00Gx48Q/w==",
+      "path": "microsoft.aspnetcore.authentication.google/8.0.22",
+      "hashPath": "microsoft.aspnetcore.authentication.google.8.0.22.nupkg.sha512"
     },
-    "Microsoft.AspNetCore.Cryptography.Internal/8.0.21": {
+    "Microsoft.AspNetCore.Authentication.JwtBearer/8.0.22": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-Hn/dYFyBFs1lOiRoMrg62lnyFEhjn1XiAidKgmLb3rcWcX+ckZg6R6qCPSMIomPDK3+CwNEDISkdctyApY6XoQ==",
-      "path": "microsoft.aspnetcore.cryptography.internal/8.0.21",
-      "hashPath": "microsoft.aspnetcore.cryptography.internal.8.0.21.nupkg.sha512"
+      "sha512": "sha512-3lqhBK+t4u8Ajl2je5UC9jCoDI+8zLz/YBVjwxQKfFF9NyzACf4QQmlmKnpH/LdkVSxCjLwvJ1ko4k0EAgy8cg==",
+      "path": "microsoft.aspnetcore.authentication.jwtbearer/8.0.22",
+      "hashPath": "microsoft.aspnetcore.authentication.jwtbearer.8.0.22.nupkg.sha512"
     },
-    "Microsoft.AspNetCore.Cryptography.KeyDerivation/8.0.21": {
+    "Microsoft.AspNetCore.Cryptography.Internal/8.0.22": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-j09sIKMS/PSFheQz59djdoQVtQpMzb2ThTwTJfYOIT3J/NW05wDP6mCGEoyWZ3NWpjdY+snVGIeLqeTjPlciEg==",
-      "path": "microsoft.aspnetcore.cryptography.keyderivation/8.0.21",
-      "hashPath": "microsoft.aspnetcore.cryptography.keyderivation.8.0.21.nupkg.sha512"
+      "sha512": "sha512-9i69+6J6AfHQoblbNlUN6gcPi5Yg+dNf6Xaq+OAUtDUbmCeSsVoxjTSlXVt5wYBkfc1f0G4R8bVq+fqmNIZSrQ==",
+      "path": "microsoft.aspnetcore.cryptography.internal/8.0.22",
+      "hashPath": "microsoft.aspnetcore.cryptography.internal.8.0.22.nupkg.sha512"
     },
-    "Microsoft.AspNetCore.Identity.EntityFrameworkCore/8.0.21": {
+    "Microsoft.AspNetCore.Cryptography.KeyDerivation/8.0.22": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-i2gPwyaiCJSTv0gg5Y/88Q5EEZPbiSQVmBcfyNKplrmgZ6vqiu8RunpLeI3/D6qoduhM1KEs/kJOCg4eWmvRoA==",
-      "path": "microsoft.aspnetcore.identity.entityframeworkcore/8.0.21",
-      "hashPath": "microsoft.aspnetcore.identity.entityframeworkcore.8.0.21.nupkg.sha512"
+      "sha512": "sha512-DTcWLqNoyTXVAT07iqTcn5elDKBJYCO81uQNHMda9XPg95pKNzDvaWA52Lvdj81k/UFhQsaQ//0vVirFG4NBTg==",
+      "path": "microsoft.aspnetcore.cryptography.keyderivation/8.0.22",
+      "hashPath": "microsoft.aspnetcore.cryptography.keyderivation.8.0.22.nupkg.sha512"
+    },
+    "Microsoft.AspNetCore.Identity.EntityFrameworkCore/8.0.22": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-8yF4+w8yEc9ba/GPeOkOENqr5OwN/6IzWIYg52YntzHTpsy65cnvav34cfYCHcIEON9moa19Sj65q2GKi1JYXg==",
+      "path": "microsoft.aspnetcore.identity.entityframeworkcore/8.0.22",
+      "hashPath": "microsoft.aspnetcore.identity.entityframeworkcore.8.0.22.nupkg.sha512"
     },
     "Microsoft.Bcl.AsyncInterfaces/7.0.0": {
       "type": "package",
@@ -970,19 +1067,19 @@
       "path": "microsoft.extensions.dependencymodel/9.0.10",
       "hashPath": "microsoft.extensions.dependencymodel.9.0.10.nupkg.sha512"
     },
-    "Microsoft.Extensions.Identity.Core/8.0.21": {
+    "Microsoft.Extensions.Identity.Core/8.0.22": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-B98yfvLEbY2r+jgL0ueQ3dZ1qcpd5OkioJGnb5VcQn0yFqQM1//ZT+PERHqmDBzXuTWA72FFb7yen1nlVfsK2g==",
-      "path": "microsoft.extensions.identity.core/8.0.21",
-      "hashPath": "microsoft.extensions.identity.core.8.0.21.nupkg.sha512"
+      "sha512": "sha512-+vGap6ZpVNEU4PaiJF8yfCmyx0CeZYfjwxLY6waY46AhloitH4kvREZTzGRMjglvH1u39LSBS2yZVBRS6U9mcw==",
+      "path": "microsoft.extensions.identity.core/8.0.22",
+      "hashPath": "microsoft.extensions.identity.core.8.0.22.nupkg.sha512"
     },
-    "Microsoft.Extensions.Identity.Stores/8.0.21": {
+    "Microsoft.Extensions.Identity.Stores/8.0.22": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-tlVQsH4DkWlWfImmrbJLELS464PgkDjsp6tjstf4hFfIWxZhpsoazjbHpcQ/fWaijYeGRw70WoleX4TD6d+nEA==",
-      "path": "microsoft.extensions.identity.stores/8.0.21",
-      "hashPath": "microsoft.extensions.identity.stores.8.0.21.nupkg.sha512"
+      "sha512": "sha512-Uw2QYkogA11V9pXJxdS2rvb0kstrf5JGP/UwUNeof5vpQrFODTAPgr3Ot11ekAXn9zQ02kPsSUwwfy/vKl9Gbg==",
+      "path": "microsoft.extensions.identity.stores/8.0.22",
+      "hashPath": "microsoft.extensions.identity.stores.8.0.22.nupkg.sha512"
     },
     "Microsoft.Extensions.Logging/9.0.10": {
       "type": "package",
@@ -1011,6 +1108,48 @@
       "sha512": "sha512-3pl8D1O5ZwMpDkZAT2uXrhQ6NipkwEgDLMFuURiHTf72TvkoMP61QYH3Vk1yrzVHnHBdNZk3cQACz8Zc7YGNhQ==",
       "path": "microsoft.extensions.primitives/9.0.10",
       "hashPath": "microsoft.extensions.primitives.9.0.10.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.Abstractions/7.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Y5wvSoKT6G9gi94FmTwyMCRDjMBVwCnDTXT9yyy95jS3lq3IRXJ/Fh+tqmsluA181RzAtXgK5SsvGGkcWm2n0g==",
+      "path": "microsoft.identitymodel.abstractions/7.4.0",
+      "hashPath": "microsoft.identitymodel.abstractions.7.4.0.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.JsonWebTokens/7.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-8Gxy/KSjzEXg4hEyMvR0EsuLpaYLERoX1grIxechhoS8ugUyVvX9zxhMUg0EC/Oi3slhQ+rWrvN6M/M26RnRLQ==",
+      "path": "microsoft.identitymodel.jsonwebtokens/7.4.0",
+      "hashPath": "microsoft.identitymodel.jsonwebtokens.7.4.0.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.Logging/7.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-TuCWnlQprih0PieviKAdvHtjuVLUjEBymEUlBqAe8BUBWlMjB7eHaZ1pi5mkPR5bbrVWLYu8/qiMVc0+neE6dQ==",
+      "path": "microsoft.identitymodel.logging/7.4.0",
+      "hashPath": "microsoft.identitymodel.logging.7.4.0.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.Protocols/7.1.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-SydLwMRFx6EHPWJ+N6+MVaoArN1Htt92b935O3RUWPY1yUF63zEjvd3lBu79eWdZUwedP8TN2I5V9T3nackvIQ==",
+      "path": "microsoft.identitymodel.protocols/7.1.2",
+      "hashPath": "microsoft.identitymodel.protocols.7.1.2.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.Protocols.OpenIdConnect/7.1.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-6lHQoLXhnMQ42mGrfDkzbIOR3rzKM1W1tgTeMPLgLCqwwGw0d96xFi/UiX/fYsu7d6cD5MJiL3+4HuI8VU+sVQ==",
+      "path": "microsoft.identitymodel.protocols.openidconnect/7.1.2",
+      "hashPath": "microsoft.identitymodel.protocols.openidconnect.7.1.2.nupkg.sha512"
+    },
+    "Microsoft.IdentityModel.Tokens/7.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2GXnFtFNv51QaIFw7pC3+OSRG+wDxj53MY6o6DRFFp/wAsTUTeasN+7Gkc6zSuI4cbrU9KXSVzs2cnW6EQ5szg==",
+      "path": "microsoft.identitymodel.tokens/7.4.0",
+      "hashPath": "microsoft.identitymodel.tokens.7.4.0.nupkg.sha512"
     },
     "Microsoft.OpenApi/1.2.3": {
       "type": "package",
@@ -1137,6 +1276,13 @@
       "sha512": "sha512-uIpKiKp7EWlYZBK71jYP+maGYjDY9YTi/FxBlZoqDzM1ZHZB7gLqUm4jHvRFwaKfR1/Lrt2rQih9LGPIKyNEow==",
       "path": "system.diagnostics.diagnosticsource/9.0.10",
       "hashPath": "system.diagnostics.diagnosticsource.9.0.10.nupkg.sha512"
+    },
+    "System.IdentityModel.Tokens.Jwt/7.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-9XayJBAY+Bs7+ISFJ6BXJuCf6q9DyP8rsn/D1uNaKHDLyADjeKLRDa5YbFRfSBo/+8cuMzlD2VIUR4VuAPoK7w==",
+      "path": "system.identitymodel.tokens.jwt/7.4.0",
+      "hashPath": "system.identitymodel.tokens.jwt.7.4.0.nupkg.sha512"
     },
     "System.IO.Pipelines/9.0.10": {
       "type": "package",

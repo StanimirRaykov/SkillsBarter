@@ -8,6 +8,7 @@ public class ApplicationUser : IdentityUser<Guid>
     public string? Description { get; set; }
     public short VerificationLevel { get; set; } = 0;
     public decimal ReputationScore { get; set; } = 0;
+    public bool IsModerator { get; set; } = false;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
