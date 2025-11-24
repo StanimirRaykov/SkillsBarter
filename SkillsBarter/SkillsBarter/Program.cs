@@ -112,6 +112,9 @@ builder.Services.AddScoped<ITokenService, JwtTokenService>();
 // Register Offer Service
 builder.Services.AddScoped<IOfferService, OfferService>();
 
+// Register Skill Service
+builder.Services.AddScoped<ISkillService, SkillService>();
+
 // Add CORS for frontend applications
 builder.Services.AddCors(options =>
 {
