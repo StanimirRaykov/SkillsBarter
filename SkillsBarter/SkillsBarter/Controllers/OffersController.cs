@@ -37,7 +37,6 @@ public class OffersController : ControllerBase
                 return BadRequest(new { message = "Invalid request", errors = ModelState.Values.SelectMany(v => v.Errors) });
             }
 
-            // Get authenticated user
             var user = await _userManager.GetUserAsync(User);
             if (user == null)
             {
@@ -45,7 +44,6 @@ public class OffersController : ControllerBase
                 return Unauthorized(new { message = "User not found" });
             }
 
-            // Validate input
             if (string.IsNullOrWhiteSpace(request.Title))
             {
                 return BadRequest(new { message = "Title is required and cannot be empty" });
@@ -61,7 +59,6 @@ public class OffersController : ControllerBase
                 return BadRequest(new { message = "Valid skill ID is required" });
             }
 
-            // Create offer
             var offerResponse = await _offerService.CreateOfferAsync(user.Id, request);
             if (offerResponse == null)
             {
