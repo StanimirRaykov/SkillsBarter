@@ -25,6 +25,22 @@ public class OffersController : ControllerBase
         _logger = logger;
     }
 
+    [HttpGet]
+    public async Task<IActionResult> GetOffers([FromQuery] GetOffersRequest? request)
+    {
+        try
+        {
+            var filters = request ?? new GetOffersRequest();
+            var offers = await _offerService.GetOffersAsync(filters);
+            return Ok(offers);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching offers with filters {@Filters}", request);
+            return StatusCode(500, new { message = "An error occurred while retrieving offers" });
+        }
+    }
+
     [HttpPost]
     [Authorize]
     public async Task<IActionResult> CreateOffer([FromBody] CreateOfferRequest request)
