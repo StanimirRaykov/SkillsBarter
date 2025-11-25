@@ -230,7 +230,6 @@ public class AuthController : ControllerBase
     public IActionResult Logout()
     {
         // With JWT, logout is handled client-side by removing the token
-        // Optionally implement token blacklist for immediate invalidation
         _logger.LogInformation($"User logged out");
         return Ok(new { success = true, message = "Successfully logged out. Please remove the token from client." });
     }
