@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs;
+using SkillsBarter.Models;
 
 namespace SkillsBarter.Services;
 
@@ -20,7 +21,7 @@ public class UserService : IUserService
         try
         {
             var user = await _dbContext.Users
-                .Include(u => u.Offers.Where(o => o.StatusCode == "ACTIVE"))
+                .Include(u => u.Offers.Where(o => o.StatusCode == OfferStatusCode.Active))
                     .ThenInclude(o => o.Skill)
                 .Include(u => u.ReviewsReceived)
                 .FirstOrDefaultAsync(u => u.Id == userId);
@@ -47,7 +48,7 @@ public class UserService : IUserService
             // Calculate review statistics
             var reviewsReceived = user.ReviewsReceived.ToList();
             var averageRating = reviewsReceived.Any()
-                ? (decimal)reviewsReceived.Average(r => r.Rating)
+                ? (decimal)reviewsReceived.Average(r => (decimal)r.Rating)
                 : 0m;
             var totalReviews = reviewsReceived.Count;
 

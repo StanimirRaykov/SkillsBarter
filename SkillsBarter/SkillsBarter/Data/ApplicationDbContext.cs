@@ -30,7 +30,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configure table names for Identity tables
         modelBuilder.Entity<ApplicationUser>(entity =>
         {
             entity.ToTable("users");
@@ -53,7 +52,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         modelBuilder.Entity<IdentityUserToken<Guid>>().ToTable("user_tokens");
         modelBuilder.Entity<IdentityRoleClaim<Guid>>().ToTable("role_claims");
 
-        // SkillCategory
         modelBuilder.Entity<SkillCategory>(entity =>
         {
             entity.ToTable("skill_categories");
@@ -62,7 +60,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.Label).HasColumnName("label").IsRequired();
         });
 
-        // Skill
         modelBuilder.Entity<Skill>(entity =>
         {
             entity.ToTable("skills");
@@ -77,16 +74,16 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // OfferStatus
         modelBuilder.Entity<OfferStatus>(entity =>
         {
             entity.ToTable("offer_status");
             entity.HasKey(e => e.Code);
-            entity.Property(e => e.Code).HasColumnName("code");
+            entity.Property(e => e.Code)
+                .HasColumnName("code")
+                .HasConversion<string>();
             entity.Property(e => e.Label).HasColumnName("label").IsRequired();
         });
 
-        // Offer
         modelBuilder.Entity<Offer>(entity =>
         {
             entity.ToTable("offers");
@@ -96,7 +93,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.SkillId).HasColumnName("skill_id");
             entity.Property(e => e.Title).HasColumnName("title").IsRequired();
             entity.Property(e => e.Description).HasColumnName("description");
-            entity.Property(e => e.StatusCode).HasColumnName("status_code").IsRequired();
+            entity.Property(e => e.StatusCode)
+                .HasColumnName("status_code")
+                .HasConversion<string>()
+                .IsRequired()
+                .HasDefaultValue(OfferStatusCode.Active);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
 
@@ -116,7 +117,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // RequestThread
         modelBuilder.Entity<RequestThread>(entity =>
         {
             entity.ToTable("request_threads");
@@ -144,7 +144,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // RequestMessage
         modelBuilder.Entity<RequestMessage>(entity =>
         {
             entity.ToTable("request_messages");
@@ -166,7 +165,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // Agreement
         modelBuilder.Entity<Agreement>(entity =>
         {
             entity.ToTable("agreements");
@@ -196,7 +194,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // Milestone
         modelBuilder.Entity<Milestone>(entity =>
         {
             entity.ToTable("milestones");
@@ -214,7 +211,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        // Payment
         modelBuilder.Entity<Payment>(entity =>
         {
             entity.ToTable("payments");
@@ -254,7 +250,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // Dispute
         modelBuilder.Entity<Dispute>(entity =>
         {
             entity.ToTable("disputes");
@@ -285,7 +280,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // DisputeMessage
         modelBuilder.Entity<DisputeMessage>(entity =>
         {
             entity.ToTable("dispute_messages");
@@ -307,7 +301,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
-        // Review
         modelBuilder.Entity<Review>(entity =>
         {
             entity.ToTable("reviews");

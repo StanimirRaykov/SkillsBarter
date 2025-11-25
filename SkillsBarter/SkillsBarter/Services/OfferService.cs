@@ -9,7 +9,6 @@ public class OfferService : IOfferService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<OfferService> _logger;
-    private const string DefaultOfferStatus = "ACTIVE";
 
     public OfferService(ApplicationDbContext dbContext, ILogger<OfferService> logger)
     {
@@ -40,13 +39,6 @@ public class OfferService : IOfferService
                 return null;
             }
 
-            var offerStatus = await _dbContext.OfferStatuses.FirstOrDefaultAsync(os => os.Code == DefaultOfferStatus);
-            if (offerStatus == null)
-            {
-                _logger.LogError("Create offer failed: Default offer status '{Status}' not found", DefaultOfferStatus);
-                return null;
-            }
-
             var offer = new Offer
             {
                 Id = Guid.NewGuid(),
@@ -54,7 +46,7 @@ public class OfferService : IOfferService
                 SkillId = request.SkillId,
                 Title = request.Title.Trim(),
                 Description = request.Description?.Trim(),
-                StatusCode = DefaultOfferStatus,
+                StatusCode = OfferStatusCode.Active,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -64,7 +56,7 @@ public class OfferService : IOfferService
 
             _logger.LogInformation("Offer created successfully: {OfferId} by user {UserId}", offer.Id, userId);
 
-            return MapToOfferResponse(offer, offerStatus.Label);
+            return MapToOfferResponse(offer);
         }
         catch (Exception ex)
         {
@@ -81,7 +73,7 @@ public class OfferService : IOfferService
 
             var query = _dbContext.Offers
                 .Include(o => o.Status)
-                .Where(o => o.StatusCode == "ACTIVE")
+                .Where(o => o.StatusCode == OfferStatusCode.Active)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.Skill))
@@ -112,7 +104,7 @@ public class OfferService : IOfferService
                 .Take(request.PageSize)
                 .ToListAsync();
 
-            var offerResponses = offers.Select(o => MapToOfferResponse(o, o.Status?.Label ?? string.Empty)).ToList();
+            var offerResponses = offers.Select(o => MapToOfferResponse(o)).ToList();
 
             return new PaginatedResponse<OfferResponse>
             {
@@ -129,7 +121,7 @@ public class OfferService : IOfferService
         }
     }
 
-    private OfferResponse MapToOfferResponse(Offer offer, string statusLabel)
+    private OfferResponse MapToOfferResponse(Offer offer)
     {
         return new OfferResponse
         {
@@ -138,8 +130,8 @@ public class OfferService : IOfferService
             SkillId = offer.SkillId,
             Title = offer.Title,
             Description = offer.Description,
-            StatusCode = offer.StatusCode,
-            StatusLabel = statusLabel,
+            StatusCode = offer.StatusCode.ToString(),
+            StatusLabel = offer.Status?.Label ?? offer.StatusCode.ToString(),
             CreatedAt = offer.CreatedAt,
             UpdatedAt = offer.UpdatedAt
         };
