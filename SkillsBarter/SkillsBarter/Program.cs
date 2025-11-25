@@ -115,6 +115,9 @@ builder.Services.AddScoped<IOfferService, OfferService>();
 // Register Skill Service
 builder.Services.AddScoped<ISkillService, SkillService>();
 
+// Register User Service
+builder.Services.AddScoped<IUserService, UserService>();
+
 // Add CORS for frontend applications
 builder.Services.AddCors(options =>
 {
