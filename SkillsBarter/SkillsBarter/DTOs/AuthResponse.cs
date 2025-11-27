@@ -19,4 +19,5 @@ public class UserDto
     public bool IsModerator { get; set; }
     public DateTime CreatedAt { get; set; }
     public bool EmailConfirmed { get; set; }
+    public List<string> Roles { get; set; } = new List<string>();
 }
