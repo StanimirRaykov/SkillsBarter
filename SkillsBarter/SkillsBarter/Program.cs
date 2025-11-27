@@ -1,7 +1,9 @@
+using AspNetCoreRateLimit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SkillsBarter.Configuration;
 using SkillsBarter.Data;
 using SkillsBarter.Models;
 using SkillsBarter.Services;
@@ -9,13 +11,10 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
-// Add DbContext with PostgreSQL
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add Identity
+
 builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 {
     // Password settings
@@ -25,22 +24,19 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
     options.Password.RequireNonAlphanumeric = false;
     options.Password.RequiredLength = 8;
 
-    // User settings
     options.User.RequireUniqueEmail = true;
 
-    // Sign-in settings
     options.SignIn.RequireConfirmedEmail = false;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
 
-// Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var secretKey = jwtSettings["SecretKey"];
 
 if (!string.IsNullOrEmpty(secretKey))
 {
-    var key = Encoding.ASCII.GetBytes(secretKey);
+    var key = Encoding.UTF8.GetBytes(secretKey);
     builder.Services.AddAuthentication(options =>
     {
         options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -79,6 +75,11 @@ if (!string.IsNullOrEmpty(secretKey))
             options.AppId = facebookAppId;
             options.AppSecret = facebookAppSecret;
         }
+        else
+        {
+            options.AppId = "placeholder";
+            options.AppSecret = "placeholder";
+        }
     });
 }
 else
@@ -103,19 +104,26 @@ else
                 options.AppId = facebookAppId;
                 options.AppSecret = facebookAppSecret;
             }
+            else
+            {
+                options.AppId = "placeholder";
+                options.AppSecret = "placeholder";
+            }
         });
 }
 
-// Register JWT Token Service
 builder.Services.AddScoped<ITokenService, JwtTokenService>();
-
-// Register Offer Service
 builder.Services.AddScoped<IOfferService, OfferService>();
-
-// Register Skill Service
 builder.Services.AddScoped<ISkillService, SkillService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
-// Add CORS for frontend applications
+builder.Services.AddMemoryCache();
+builder.Services.Configure<ClientRateLimitOptions>(builder.Configuration.GetSection("ClientRateLimiting"));
+builder.Services.Configure<ClientRateLimitPolicies>(builder.Configuration.GetSection("ClientRateLimitPolicies"));
+builder.Services.AddSingleton<IClientResolveContributor, ClientRateLimitResolver>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddInMemoryRateLimiting();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -128,13 +136,11 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -144,6 +150,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseCors("AllowFrontend");
+
+app.UseClientRateLimiting();
 
 app.UseAuthentication();
 app.UseAuthorization();

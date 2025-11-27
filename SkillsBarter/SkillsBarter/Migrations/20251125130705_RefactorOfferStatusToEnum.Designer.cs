@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SkillsBarter.Data;
@@ -11,9 +12,11 @@ using SkillsBarter.Data;
 namespace SkillsBarter.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251125130705_RefactorOfferStatusToEnum")]
+    partial class RefactorOfferStatusToEnum
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -232,14 +235,6 @@ namespace SkillsBarter.Migrations
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("EmailVerificationToken")
-                        .HasColumnType("text")
-                        .HasColumnName("email_verification_token");
-
-                    b.Property<DateTime?>("EmailVerificationTokenExpiry")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("email_verification_token_expiry");
 
                     b.Property<bool>("IsModerator")
                         .HasColumnType("boolean");

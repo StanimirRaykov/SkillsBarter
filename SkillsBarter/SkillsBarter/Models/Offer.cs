@@ -7,7 +7,7 @@ public class Offer
     public Guid SkillId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
-    public string StatusCode { get; set; } = string.Empty;
+    public OfferStatusCode StatusCode { get; set; } = OfferStatusCode.Active;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

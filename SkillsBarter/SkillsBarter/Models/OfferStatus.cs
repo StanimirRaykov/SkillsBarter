@@ -2,7 +2,7 @@ namespace SkillsBarter.Models;
 
 public class OfferStatus
 {
-    public string Code { get; set; } = string.Empty;
+    public OfferStatusCode Code { get; set; }
     public string Label { get; set; } = string.Empty;
 
     public virtual ICollection<Offer> Offers { get; set; } = new List<Offer>();
