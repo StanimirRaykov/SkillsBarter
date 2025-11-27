@@ -1,19 +1,10 @@
 using AspNetCoreRateLimit;
-using Microsoft.AspNetCore.Identity;
-using SkillsBarter.Models;
 using System.Security.Claims;
 
 namespace SkillsBarter.Configuration;
 
 public class ClientRateLimitResolver : IClientResolveContributor
 {
-    private readonly UserManager<ApplicationUser> _userManager;
-
-    public ClientRateLimitResolver(UserManager<ApplicationUser> userManager)
-    {
-        _userManager = userManager;
-    }
-
     public Task<string> ResolveClientAsync(HttpContext httpContext)
     {
         var clientId = "anonymous";

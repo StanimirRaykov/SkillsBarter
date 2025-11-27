@@ -41,6 +41,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.Description).HasColumnName("description");
             entity.Property(e => e.VerificationLevel).HasColumnName("verification_level").HasDefaultValue(0);
             entity.Property(e => e.ReputationScore).HasColumnName("reputation_score").HasColumnType("numeric").HasDefaultValue(0);
+            entity.Property(e => e.EmailVerificationToken).HasColumnName("email_verification_token");
+            entity.Property(e => e.EmailVerificationTokenExpiry).HasColumnName("email_verification_token_expiry");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
         });
