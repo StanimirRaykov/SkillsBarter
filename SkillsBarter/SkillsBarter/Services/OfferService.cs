@@ -73,13 +73,13 @@ public class OfferService : IOfferService
 
             var query = _dbContext.Offers
                 .Include(o => o.Status)
+                .Include(o => o.Skill)
                 .Where(o => o.StatusCode == OfferStatusCode.Active)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.Skill))
             {
                 query = query.Where(o => o.Skill.CategoryCode == request.Skill);
-                query = query.Include(o => o.Skill);
             }
 
             if (request.SkillId.HasValue)
@@ -128,11 +128,30 @@ public class OfferService : IOfferService
             var offer = await _dbContext.Offers
                 .Include(o => o.User)
                 .Include(o => o.Status)
+                .Include(o => o.Skill)
                 .FirstOrDefaultAsync(o => o.Id == offerId);
 
             if (offer == null)
             {
                 _logger.LogWarning("Offer {OfferId} not found", offerId);
+                return null;
+            }
+
+            if (offer.StatusCode != OfferStatusCode.Active)
+            {
+                _logger.LogInformation("Offer {OfferId} is not active (Status: {Status})", offerId, offer.StatusCode);
+                return null;
+            }
+
+            if (offer.User == null)
+            {
+                _logger.LogError("Offer {OfferId} has no associated user", offerId);
+                return null;
+            }
+
+            if (offer.Skill == null)
+            {
+                _logger.LogError("Offer {OfferId} has no associated skill", offerId);
                 return null;
             }
 
@@ -145,6 +164,8 @@ public class OfferService : IOfferService
                 Id = offer.Id,
                 UserId = offer.UserId,
                 SkillId = offer.SkillId,
+                SkillName = offer.Skill.Name,
+                SkillCategoryCode = offer.Skill.CategoryCode,
                 Title = offer.Title,
                 Description = offer.Description,
                 StatusCode = offer.StatusCode.ToString(),

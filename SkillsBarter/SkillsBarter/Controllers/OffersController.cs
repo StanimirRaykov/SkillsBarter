@@ -46,18 +46,18 @@ public class OffersController : ControllerBase
     {
         try
         {
+            if (id == Guid.Empty)
+            {
+                _logger.LogWarning("Invalid offer ID provided");
+                return BadRequest(new { message = "Invalid offer ID" });
+            }
+
             var offer = await _offerService.GetOfferByIdAsync(id);
 
             if (offer == null)
             {
-                _logger.LogWarning("Offer {OfferId} not found", id);
+                _logger.LogWarning("Offer {OfferId} not found or not available", id);
                 return NotFound(new { message = "Offer not found" });
-            }
-
-            if (offer.StatusCode != "Active")
-            {
-                _logger.LogInformation("Attempt to access inactive offer {OfferId} with status {Status}", id, offer.StatusCode);
-                return NotFound(new { message = "This offer is no longer available" });
             }
 
             return Ok(offer);
@@ -88,21 +88,6 @@ public class OffersController : ControllerBase
                 return Unauthorized(new { message = "User not found" });
             }
 
-            if (string.IsNullOrWhiteSpace(request.Title))
-            {
-                return BadRequest(new { message = "Title is required and cannot be empty" });
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Description))
-            {
-                return BadRequest(new { message = "Description is required and cannot be empty" });
-            }
-
-            if (request.SkillId == Guid.Empty)
-            {
-                return BadRequest(new { message = "Valid skill ID is required" });
-            }
-
             var offerResponse = await _offerService.CreateOfferAsync(user.Id, request);
             if (offerResponse == null)
             {
@@ -110,7 +95,7 @@ public class OffersController : ControllerBase
             }
 
             _logger.LogInformation("Offer created successfully by user {UserId}", user.Id);
-            return CreatedAtAction(nameof(CreateOffer), new { id = offerResponse.Id }, offerResponse);
+            return CreatedAtAction(nameof(GetOfferById), new { id = offerResponse.Id }, offerResponse);
         }
         catch (Exception ex)
         {
