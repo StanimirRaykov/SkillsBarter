@@ -41,6 +41,34 @@ public class OffersController : ControllerBase
         }
     }
 
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetOfferById(Guid id)
+    {
+        try
+        {
+            var offer = await _offerService.GetOfferByIdAsync(id);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Offer {OfferId} not found", id);
+                return NotFound(new { message = "Offer not found" });
+            }
+
+            if (offer.StatusCode != "Active")
+            {
+                _logger.LogInformation("Attempt to access inactive offer {OfferId} with status {Status}", id, offer.StatusCode);
+                return NotFound(new { message = "This offer is no longer available" });
+            }
+
+            return Ok(offer);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching offer {OfferId}", id);
+            return StatusCode(500, new { message = "An error occurred while retrieving the offer" });
+        }
+    }
+
     [HttpPost]
     [Authorize]
     public async Task<IActionResult> CreateOffer([FromBody] CreateOfferRequest request)

@@ -121,6 +121,51 @@ public class OfferService : IOfferService
         }
     }
 
+    public async Task<OfferDetailResponse?> GetOfferByIdAsync(Guid offerId)
+    {
+        try
+        {
+            var offer = await _dbContext.Offers
+                .Include(o => o.User)
+                .Include(o => o.Status)
+                .FirstOrDefaultAsync(o => o.Id == offerId);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Offer {OfferId} not found", offerId);
+                return null;
+            }
+
+            var averageRating = await _dbContext.Reviews
+                .Where(r => r.RecipientId == offer.UserId)
+                .AverageAsync(r => (decimal?)r.Rating) ?? 0m;
+
+            return new OfferDetailResponse
+            {
+                Id = offer.Id,
+                UserId = offer.UserId,
+                SkillId = offer.SkillId,
+                Title = offer.Title,
+                Description = offer.Description,
+                StatusCode = offer.StatusCode.ToString(),
+                StatusLabel = offer.Status?.Label ?? offer.StatusCode.ToString(),
+                CreatedAt = offer.CreatedAt,
+                UpdatedAt = offer.UpdatedAt,
+                Owner = new OfferOwnerInfo
+                {
+                    Id = offer.User.Id,
+                    Name = offer.User.Name,
+                    Rating = averageRating
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving offer {OfferId}", offerId);
+            throw;
+        }
+    }
+
     private OfferResponse MapToOfferResponse(Offer offer)
     {
         return new OfferResponse
