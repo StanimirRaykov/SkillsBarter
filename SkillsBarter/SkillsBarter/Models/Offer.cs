@@ -16,5 +16,4 @@ public class Offer
     public virtual OfferStatus Status { get; set; } = null!;
     public virtual ICollection<RequestThread> RequestThreads { get; set; } = new List<RequestThread>();
     public virtual ICollection<Agreement> Agreements { get; set; } = new List<Agreement>();
-    public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
 }

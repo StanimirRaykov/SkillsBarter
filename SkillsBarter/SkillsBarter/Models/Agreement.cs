@@ -17,4 +17,5 @@ public class Agreement
     public virtual ICollection<Milestone> Milestones { get; set; } = new List<Milestone>();
     public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
     public virtual ICollection<Dispute> Disputes { get; set; } = new List<Dispute>();
+    public virtual ICollection<Review> Reviews { get; set; } = new List<Review>();
 }
