@@ -45,6 +45,19 @@ public class ReviewService : IReviewService
                 return null;
             }
 
+            if (agreement.CompletedAt == null)
+            {
+                _logger.LogWarning("Create review failed: Agreement {AgreementId} is not completed. CompletedAt is null.", request.AgreementId);
+                return null;
+            }
+
+            if (!string.Equals(agreement.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("Create review failed: Agreement {AgreementId} has status '{Status}', but must be 'Completed'",
+                    request.AgreementId, agreement.Status);
+                return null;
+            }
+
             if (agreement.BuyerId != reviewerId && agreement.SellerId != reviewerId)
             {
                 _logger.LogWarning("Create review failed: Reviewer {ReviewerId} is not part of agreement {AgreementId}",
@@ -65,6 +78,7 @@ public class ReviewService : IReviewService
                 return null;
             }
 
+            
             var existingReview = await _dbContext.Reviews
                 .FirstOrDefaultAsync(r => r.ReviewerId == reviewerId &&
                                          r.AgreementId == request.AgreementId &&

@@ -43,7 +43,7 @@ public class ReviewsController : ControllerBase
             var reviewResponse = await _reviewService.CreateReviewAsync(reviewerId, request);
             if (reviewResponse == null)
             {
-                return BadRequest(new { message = "Failed to create review. This could be due to: invalid recipient/offer, duplicate review, or attempting to review yourself." });
+                return BadRequest(new { message = "Failed to create review. Possible reasons: the agreement is not completed, invalid recipient/agreement, duplicate review, or attempting to review yourself." });
             }
 
             _logger.LogInformation("Review created successfully: {ReviewId} by reviewer {ReviewerId}", reviewResponse.Id, reviewerId);
