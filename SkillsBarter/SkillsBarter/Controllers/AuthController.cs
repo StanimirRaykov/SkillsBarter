@@ -119,15 +119,16 @@ public class AuthController : ControllerBase
 
         _logger.LogInformation($"User {user.Email} logged in via OAuth");
 
-        // Generate JWT token for API authentication
-        var token = _tokenService.GenerateAccessToken(user);
+        var roles = await _userManager.GetRolesAsync(user);
+
+        var token = _tokenService.GenerateAccessToken(user, roles);
 
         return Ok(new AuthResponse
         {
             Success = true,
             Message = "Successfully authenticated via OAuth",
             Token = token,
-            User = MapToUserDto(user)
+            User = await MapToUserDto(user)
         });
     }
 
@@ -177,15 +178,17 @@ public class AuthController : ControllerBase
 
         _logger.LogInformation($"User {user.Email} registered successfully");
 
-        // Generate JWT token
-        var token = _tokenService.GenerateAccessToken(user);
+        // Assigning default Freemium role to new user
+        await _userManager.AddToRoleAsync(user, "Freemium");
+        var roles = await _userManager.GetRolesAsync(user);
+        var token = _tokenService.GenerateAccessToken(user, roles);
 
         return Ok(new AuthResponse
         {
             Success = true,
             Message = "User registered successfully",
             Token = token,
-            User = MapToUserDto(user)
+            User = await MapToUserDto(user)
         });
     }
 
@@ -213,15 +216,16 @@ public class AuthController : ControllerBase
 
         _logger.LogInformation($"User {user.Email} logged in successfully");
 
-        // Generate JWT token
-        var token = _tokenService.GenerateAccessToken(user);
+        var roles = await _userManager.GetRolesAsync(user);
+
+        var token = _tokenService.GenerateAccessToken(user, roles);
 
         return Ok(new AuthResponse
         {
             Success = true,
             Message = "Login successful",
             Token = token,
-            User = MapToUserDto(user)
+            User = await MapToUserDto(user)
         });
     }
 
@@ -245,12 +249,13 @@ public class AuthController : ControllerBase
         return Ok(new AuthResponse
         {
             Success = true,
-            User = MapToUserDto(user)
+            User = await MapToUserDto(user)
         });
     }
 
-    private UserDto MapToUserDto(ApplicationUser user)
+    private async Task<UserDto> MapToUserDto(ApplicationUser user)
     {
+        var roles = await _userManager.GetRolesAsync(user);
         return new UserDto
         {
             Id = user.Id,
@@ -260,7 +265,8 @@ public class AuthController : ControllerBase
             Description = user.Description,
             IsModerator = user.IsModerator,
             CreatedAt = user.CreatedAt,
-            EmailConfirmed = user.EmailConfirmed
+            EmailConfirmed = user.EmailConfirmed,
+            Roles = roles.ToList()
         };
     }
 }

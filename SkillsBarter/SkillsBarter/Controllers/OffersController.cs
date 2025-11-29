@@ -41,6 +41,34 @@ public class OffersController : ControllerBase
         }
     }
 
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetOfferById(Guid id)
+    {
+        try
+        {
+            if (id == Guid.Empty)
+            {
+                _logger.LogWarning("Invalid offer ID provided");
+                return BadRequest(new { message = "Invalid offer ID" });
+            }
+
+            var offer = await _offerService.GetOfferByIdAsync(id);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Offer {OfferId} not found or not available", id);
+                return NotFound(new { message = "Offer not found" });
+            }
+
+            return Ok(offer);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching offer {OfferId}", id);
+            return StatusCode(500, new { message = "An error occurred while retrieving the offer" });
+        }
+    }
+
     [HttpPost]
     [Authorize]
     public async Task<IActionResult> CreateOffer([FromBody] CreateOfferRequest request)
@@ -60,21 +88,6 @@ public class OffersController : ControllerBase
                 return Unauthorized(new { message = "User not found" });
             }
 
-            if (string.IsNullOrWhiteSpace(request.Title))
-            {
-                return BadRequest(new { message = "Title is required and cannot be empty" });
-            }
-
-            if (string.IsNullOrWhiteSpace(request.Description))
-            {
-                return BadRequest(new { message = "Description is required and cannot be empty" });
-            }
-
-            if (request.SkillId == Guid.Empty)
-            {
-                return BadRequest(new { message = "Valid skill ID is required" });
-            }
-
             var offerResponse = await _offerService.CreateOfferAsync(user.Id, request);
             if (offerResponse == null)
             {
@@ -82,12 +95,94 @@ public class OffersController : ControllerBase
             }
 
             _logger.LogInformation("Offer created successfully by user {UserId}", user.Id);
-            return CreatedAtAction(nameof(CreateOffer), new { id = offerResponse.Id }, offerResponse);
+            return CreatedAtAction(nameof(GetOfferById), new { id = offerResponse.Id }, offerResponse);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating offer");
             return StatusCode(500, new { message = "An error occurred while creating the offer" });
+        }
+    }
+
+    [HttpPut("{id}")]
+    [Authorize]
+    public async Task<IActionResult> UpdateOffer(Guid id, [FromBody] UpdateOfferRequest request)
+    {
+        try
+        {
+            if (id == Guid.Empty)
+            {
+                _logger.LogWarning("Invalid offer ID provided for update");
+                return BadRequest(new { message = "Invalid offer ID" });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                _logger.LogWarning("Invalid model state for update offer request");
+                return BadRequest(new { message = "Invalid request", errors = ModelState.Values.SelectMany(v => v.Errors) });
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                _logger.LogWarning("Authenticated user not found");
+                return Unauthorized(new { message = "User not found" });
+            }
+
+            var isAdmin = await _userManager.IsInRoleAsync(user, Constants.AppRoles.Admin);
+
+            var offerResponse = await _offerService.UpdateOfferAsync(id, user.Id, request, isAdmin);
+            if (offerResponse == null)
+            {
+                _logger.LogWarning("Failed to update offer {OfferId} - not found or unauthorized", id);
+                return NotFound(new { message = "Offer not found or you are not authorized to update it" });
+            }
+
+            _logger.LogInformation("Offer {OfferId} updated successfully by user {UserId}", id, user.Id);
+            return Ok(offerResponse);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating offer {OfferId}", id);
+            return StatusCode(500, new { message = "An error occurred while updating the offer" });
+        }
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteOffer(Guid id)
+    {
+        try
+        {
+            if (id == Guid.Empty)
+            {
+                _logger.LogWarning("Invalid offer ID provided for deletion");
+                return BadRequest(new { message = "Invalid offer ID" });
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                _logger.LogWarning("Authenticated user not found");
+                return Unauthorized(new { message = "User not found" });
+            }
+
+            var isAdmin = await _userManager.IsInRoleAsync(user, Constants.AppRoles.Admin);
+
+            var success = await _offerService.DeleteOfferAsync(id, user.Id, isAdmin);
+            if (!success)
+            {
+                _logger.LogWarning("Failed to delete offer {OfferId} - not found or unauthorized", id);
+                return NotFound(new { message = "Offer not found or you are not authorized to delete it" });
+            }
+
+            _logger.LogInformation("Offer {OfferId} deleted successfully by user {UserId}", id, user.Id);
+            return Ok(new { message = "Offer successfully deleted" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting offer {OfferId}", id);
+            return StatusCode(500, new { message = "An error occurred while deleting the offer" });
         }
     }
 }

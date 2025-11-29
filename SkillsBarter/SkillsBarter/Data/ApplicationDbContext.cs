@@ -310,7 +310,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.RecipientId).HasColumnName("recipient_id");
             entity.Property(e => e.ReviewerId).HasColumnName("reviewer_id");
-            entity.Property(e => e.OfferId).HasColumnName("offer_id");
+            entity.Property(e => e.AgreementId).HasColumnName("agreement_id");
             entity.Property(e => e.Rating).HasColumnName("rating").IsRequired();
             entity.Property(e => e.Body).HasColumnName("body");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
@@ -325,9 +325,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasForeignKey(e => e.ReviewerId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(e => e.Offer)
-                .WithMany(o => o.Reviews)
-                .HasForeignKey(e => e.OfferId)
+            entity.HasOne(e => e.Agreement)
+                .WithMany(a => a.Reviews)
+                .HasForeignKey(e => e.AgreementId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

@@ -8,7 +8,7 @@ namespace SkillsBarter.Services;
 
 public interface ITokenService
 {
-    string GenerateAccessToken(ApplicationUser user);
+    string GenerateAccessToken(ApplicationUser user, IList<string>? roles = null);
 }
 
 public class JwtTokenService : ITokenService
@@ -22,7 +22,7 @@ public class JwtTokenService : ITokenService
         _logger = logger;
     }
 
-    public string GenerateAccessToken(ApplicationUser user)
+    public string GenerateAccessToken(ApplicationUser user, IList<string>? roles = null)
     {
         var jwtSettings = _configuration.GetSection("Jwt");
         var secretKey = jwtSettings["SecretKey"];
@@ -46,6 +46,14 @@ public class JwtTokenService : ITokenService
             new Claim(ClaimTypes.Name, user.Name),
             new Claim("IsModerator", user.IsModerator.ToString())
         };
+
+        if (roles != null && roles.Any())
+        {
+            foreach (var role in roles)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, role));
+            }
+        }
 
         var token = new JwtSecurityToken(
             issuer: issuer,
