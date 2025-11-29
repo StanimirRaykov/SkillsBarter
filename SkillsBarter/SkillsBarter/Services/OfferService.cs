@@ -187,6 +187,112 @@ public class OfferService : IOfferService
         }
     }
 
+    public async Task<OfferResponse?> UpdateOfferAsync(Guid offerId, Guid userId, UpdateOfferRequest request, bool isAdmin)
+    {
+        try
+        {
+            var offer = await _dbContext.Offers
+                .Include(o => o.Status)
+                .Include(o => o.Skill)
+                .FirstOrDefaultAsync(o => o.Id == offerId);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Update offer failed: Offer {OfferId} not found", offerId);
+                return null;
+            }
+
+            if (offer.UserId != userId && !isAdmin)
+            {
+                _logger.LogWarning("Update offer failed: User {UserId} is not authorized to update offer {OfferId}", userId, offerId);
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Title))
+            {
+                offer.Title = request.Title.Trim();
+            }
+
+            if (request.Description != null)
+            {
+                offer.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+            }
+
+            if (request.SkillId.HasValue)
+            {
+                var skill = await _dbContext.Skills.FirstOrDefaultAsync(s => s.Id == request.SkillId.Value);
+                if (skill == null)
+                {
+                    _logger.LogWarning("Update offer failed: Skill {SkillId} not found", request.SkillId.Value);
+                    return null;
+                }
+                offer.SkillId = request.SkillId.Value;
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.StatusCode))
+            {
+                if (Enum.TryParse<OfferStatusCode>(request.StatusCode, true, out var statusCode))
+                {
+                    offer.StatusCode = statusCode;
+                }
+                else
+                {
+                    _logger.LogWarning("Update offer failed: Invalid status code {StatusCode}", request.StatusCode);
+                    return null;
+                }
+            }
+
+            offer.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation("Offer {OfferId} updated successfully by user {UserId}", offerId, userId);
+
+            return MapToOfferResponse(offer);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating offer {OfferId} for user {UserId}", offerId, userId);
+            throw;
+        }
+    }
+    
+    // For business purposes we do not delete offers, 
+    // we mark them as cancelled
+    // Might change in the future
+    public async Task<bool> DeleteOfferAsync(Guid offerId, Guid userId, bool isAdmin)
+    {
+        try
+        {
+            var offer = await _dbContext.Offers.FirstOrDefaultAsync(o => o.Id == offerId);
+
+            if (offer == null)
+            {
+                _logger.LogWarning("Delete offer failed: Offer {OfferId} not found", offerId);
+                return false;
+            }
+
+            // Only owner or admin can delete
+            if (offer.UserId != userId && !isAdmin)
+            {
+                _logger.LogWarning("Delete offer failed: User {UserId} is not authorized to delete offer {OfferId}", userId, offerId);
+                return false;
+            }
+
+            offer.StatusCode = OfferStatusCode.Cancelled;
+            offer.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation("Offer {OfferId} marked as cancelled by user {UserId}", offerId, userId);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting offer {OfferId} for user {UserId}", offerId, userId);
+            throw;
+        }
+    }
+
     private OfferResponse MapToOfferResponse(Offer offer)
     {
         return new OfferResponse
