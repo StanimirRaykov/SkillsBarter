@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -42,14 +43,22 @@ public class AgreementsController : ControllerBase
                 return Unauthorized(new { message = "User not authenticated" });
             }
 
+            if (currentUser.Id != request.RequesterId && currentUser.Id != request.ProviderId)
+            {
+                _logger.LogWarning("User {UserId} attempted to create agreement but is not one of the parties (Requester: {RequesterId}, Provider: {ProviderId})",
+                    currentUser.Id, request.RequesterId, request.ProviderId);
+                return Forbid();
+            }
+
             var agreement = await _agreementService.CreateAgreementAsync(
                 request.OfferId,
                 request.RequesterId,
-                request.ProviderId);
+                request.ProviderId,
+                request.Terms);
 
             if (agreement == null)
             {
-                return BadRequest(new { message = "Failed to create agreement. Please verify the offer is active and all users exist." });
+                return BadRequest(new { message = "Failed to create agreement. Ensure the offer is active, you are authorized (one party must be the offer owner), no active agreement exists, and all users are valid." });
             }
 
             _logger.LogInformation("Agreement {AgreementId} created successfully", agreement.Id);
@@ -129,7 +138,14 @@ public class AgreementsController : ControllerBase
 
 public class CreateAgreementRequest
 {
+    [Required]
     public Guid OfferId { get; set; }
+
+    [Required]
     public Guid RequesterId { get; set; }
+
+    [Required]
     public Guid ProviderId { get; set; }
+
+    public string? Terms { get; set; }
 }

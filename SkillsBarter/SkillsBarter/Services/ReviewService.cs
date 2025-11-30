@@ -51,7 +51,7 @@ public class ReviewService : IReviewService
                 return null;
             }
 
-            if (!string.Equals(agreement.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+            if (agreement.Status != AgreementStatus.Completed)
             {
                 _logger.LogWarning("Create review failed: Agreement {AgreementId} has status '{Status}', but must be 'Completed'",
                     request.AgreementId, agreement.Status);

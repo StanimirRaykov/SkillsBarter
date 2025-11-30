@@ -175,7 +175,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.OfferId).HasColumnName("offer_id");
             entity.Property(e => e.RequesterId).HasColumnName("requester_id");
             entity.Property(e => e.ProviderId).HasColumnName("provider_id");
-            entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+            entity.Property(e => e.Terms).HasColumnName("terms");
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .IsRequired()
+                .HasDefaultValue(AgreementStatus.Pending);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.AcceptedAt).HasColumnName("accepted_at");
             entity.Property(e => e.CompletedAt).HasColumnName("completed_at");

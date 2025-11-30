@@ -6,7 +6,8 @@ public class Agreement
     public Guid OfferId { get; set; }
     public Guid RequesterId { get; set; }
     public Guid ProviderId { get; set; }
-    public string Status { get; set; } = string.Empty;
+    public string? Terms { get; set; }
+    public AgreementStatus Status { get; set; } = AgreementStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? AcceptedAt { get; set; }
     public DateTime? CompletedAt { get; set; }

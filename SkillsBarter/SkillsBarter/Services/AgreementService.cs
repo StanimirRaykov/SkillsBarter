@@ -16,11 +16,15 @@ public class AgreementService : IAgreementService
         _logger = logger;
     }
 
-    public async Task<AgreementResponse?> CreateAgreementAsync(Guid offerId, Guid requesterId, Guid providerId)
+    public async Task<AgreementResponse?> CreateAgreementAsync(Guid offerId, Guid requesterId, Guid providerId, string? terms)
     {
+        using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
-            var offer = await _dbContext.Offers.FindAsync(offerId);
+            var offer = await _dbContext.Offers
+                .Include(o => o.User)
+                .FirstOrDefaultAsync(o => o.Id == offerId);
+
             if (offer == null)
             {
                 _logger.LogWarning("Create agreement failed: Offer {OfferId} not found", offerId);
@@ -54,13 +58,34 @@ public class AgreementService : IAgreementService
                 return null;
             }
 
+            if (offer.UserId != requesterId && offer.UserId != providerId)
+            {
+                _logger.LogWarning("Create agreement failed: Neither requester {RequesterId} nor provider {ProviderId} owns offer {OfferId} (Owner: {OwnerId})",
+                    requesterId, providerId, offerId, offer.UserId);
+                return null;
+            }
+
+            var existingAgreement = await _dbContext.Agreements
+                .Where(a => a.OfferId == offerId &&
+                           (a.Status == AgreementStatus.Pending ||
+                            a.Status == AgreementStatus.InProgress))
+                .FirstOrDefaultAsync();
+
+            if (existingAgreement != null)
+            {
+                _logger.LogWarning("Create agreement failed: Offer {OfferId} already has an active agreement {AgreementId}",
+                    offerId, existingAgreement.Id);
+                return null;
+            }
+
             var agreement = new Agreement
             {
                 Id = Guid.NewGuid(),
                 OfferId = offerId,
                 RequesterId = requesterId,
                 ProviderId = providerId,
-                Status = "Pending",
+                Terms = terms,
+                Status = AgreementStatus.InProgress,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -71,6 +96,7 @@ public class AgreementService : IAgreementService
             _dbContext.Offers.Update(offer);
 
             await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             _logger.LogInformation("Agreement {AgreementId} created for offer {OfferId}. Offer status set to UnderAgreement",
                 agreement.Id, offerId);
@@ -79,6 +105,7 @@ public class AgreementService : IAgreementService
         }
         catch (Exception ex)
         {
+            await transaction.RollbackAsync();
             _logger.LogError(ex, "Error creating agreement for offer {OfferId}", offerId);
             throw;
         }
@@ -105,13 +132,13 @@ public class AgreementService : IAgreementService
                 return null;
             }
 
-            if (agreement.Status == "Completed")
+            if (agreement.Status == AgreementStatus.Completed)
             {
                 _logger.LogWarning("Complete agreement failed: Agreement {AgreementId} is already completed", agreementId);
                 return null;
             }
 
-            agreement.Status = "Completed";
+            agreement.Status = AgreementStatus.Completed;
             agreement.CompletedAt = DateTime.UtcNow;
             _dbContext.Agreements.Update(agreement);
 
@@ -166,6 +193,7 @@ public class AgreementService : IAgreementService
             OfferId = agreement.OfferId,
             RequesterId = agreement.RequesterId,
             ProviderId = agreement.ProviderId,
+            Terms = agreement.Terms,
             Status = agreement.Status,
             CreatedAt = agreement.CreatedAt,
             AcceptedAt = agreement.AcceptedAt,
