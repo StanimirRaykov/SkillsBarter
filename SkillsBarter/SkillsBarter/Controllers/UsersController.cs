@@ -123,32 +123,46 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("{id:guid}/details")]
-    [Authorize(Roles = $"{AppRoles.Moderator},{AppRoles.Admin}")]
+    [Authorize]
     public async Task<IActionResult> GetUserDetails(Guid id)
     {
         try
         {
-            var user = await _userManager.FindByIdAsync(id.ToString());
-            if (user == null)
+            if (id == Guid.Empty)
             {
+                _logger.LogWarning("Invalid user ID provided to details endpoint");
+                return BadRequest(new { message = "Invalid user ID" });
+            }
+
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            // Only users can view their own detailed profile or admins/moderators can view any
+            var userRoles = await _userManager.GetRolesAsync(currentUser);
+            var isAdminOrModerator = userRoles.Any(role => role == AppRoles.Admin || role == AppRoles.Moderator);
+            var isOwner = currentUser.Id.Equals(id);
+
+            if (!isOwner && !isAdminOrModerator)
+            {
+                _logger.LogWarning("User {UserId} attempted unauthorized access to detailed profile of user {TargetUserId}", currentUser.Id, id);
+                return StatusCode(403, new { message = "You are not authorized to view this user's detailed profile" });
+            }
+
+            var detailedProfile = await _userService.GetDetailedProfileAsync(id);
+            if (detailedProfile == null)
+            {
+                _logger.LogWarning("User not found with ID: {UserId}", id);
                 return NotFound(new { message = "User not found" });
             }
 
-            var roles = await _userManager.GetRolesAsync(user);
-
+            _logger.LogInformation("User {UserId} accessed detailed profile for user {TargetUserId}", currentUser.Id, id);
             return Ok(new
             {
-                user.Id,
-                user.Name,
-                user.Email,
-                user.EmailConfirmed,
-                user.PhoneNumber,
-                user.Description,
-                user.VerificationLevel,
-                user.ReputationScore,
-                user.CreatedAt,
-                user.UpdatedAt,
-                Roles = roles
+                success = true,
+                profile = detailedProfile
             });
         }
         catch (Exception ex)
