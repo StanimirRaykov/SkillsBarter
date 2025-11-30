@@ -18,10 +18,10 @@ public class ApplicationUser : IdentityUser<Guid>
     public virtual ICollection<RequestThread> InitiatedThreads { get; set; } = new List<RequestThread>();
     public virtual ICollection<RequestThread> ReceivedThreads { get; set; } = new List<RequestThread>();
     public virtual ICollection<RequestMessage> SentMessages { get; set; } = new List<RequestMessage>();
-    public virtual ICollection<Agreement> BuyerAgreements { get; set; } = new List<Agreement>();
-    public virtual ICollection<Agreement> SellerAgreements { get; set; } = new List<Agreement>();
-    public virtual ICollection<Payment> PayerPayments { get; set; } = new List<Payment>();
-    public virtual ICollection<Payment> PayeePayments { get; set; } = new List<Payment>();
+    public virtual ICollection<Agreement> RequesterAgreements { get; set; } = new List<Agreement>();
+    public virtual ICollection<Agreement> ProviderAgreements { get; set; } = new List<Agreement>();
+    public virtual ICollection<Payment> TipsSent { get; set; } = new List<Payment>();
+    public virtual ICollection<Payment> TipsReceived { get; set; } = new List<Payment>();
     public virtual ICollection<Dispute> OpenedDisputes { get; set; } = new List<Dispute>();
     public virtual ICollection<DisputeMessage> DisputeMessages { get; set; } = new List<DisputeMessage>();
     public virtual ICollection<Review> ReviewsGiven { get; set; } = new List<Review>();

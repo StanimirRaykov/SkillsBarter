@@ -35,8 +35,8 @@ public class ReviewService : IReviewService
             }
 
             var agreement = await _dbContext.Agreements
-                .Include(a => a.Buyer)
-                .Include(a => a.Seller)
+                .Include(a => a.Requester)
+                .Include(a => a.Provider)
                 .FirstOrDefaultAsync(a => a.Id == request.AgreementId);
 
             if (agreement == null)
@@ -58,14 +58,14 @@ public class ReviewService : IReviewService
                 return null;
             }
 
-            if (agreement.BuyerId != reviewerId && agreement.SellerId != reviewerId)
+            if (agreement.RequesterId != reviewerId && agreement.ProviderId != reviewerId)
             {
                 _logger.LogWarning("Create review failed: Reviewer {ReviewerId} is not part of agreement {AgreementId}",
                     reviewerId, request.AgreementId);
                 return null;
             }
 
-            if (agreement.BuyerId != request.RecipientId && agreement.SellerId != request.RecipientId)
+            if (agreement.RequesterId != request.RecipientId && agreement.ProviderId != request.RecipientId)
             {
                 _logger.LogWarning("Create review failed: Recipient {RecipientId} is not part of agreement {AgreementId}",
                     request.RecipientId, request.AgreementId);
