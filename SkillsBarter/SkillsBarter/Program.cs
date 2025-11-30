@@ -117,6 +117,7 @@ builder.Services.AddScoped<IOfferService, OfferService>();
 builder.Services.AddScoped<ISkillService, SkillService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
+builder.Services.AddScoped<IAgreementService, AgreementService>();
 builder.Services.AddScoped<RoleSeeder>();
 
 builder.Services.AddMemoryCache();

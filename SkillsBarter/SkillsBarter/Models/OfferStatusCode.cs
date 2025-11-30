@@ -4,5 +4,7 @@ public enum OfferStatusCode
 {
     Active,
     Cancelled,
-    UnderReview
+    UnderAgreement,
+    UnderReview,
+    Completed
 }

@@ -173,9 +173,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.OfferId).HasColumnName("offer_id");
-            entity.Property(e => e.BuyerId).HasColumnName("buyer_id");
-            entity.Property(e => e.SellerId).HasColumnName("seller_id");
-            entity.Property(e => e.Status).HasColumnName("status").IsRequired();
+            entity.Property(e => e.RequesterId).HasColumnName("requester_id");
+            entity.Property(e => e.ProviderId).HasColumnName("provider_id");
+            entity.Property(e => e.Terms).HasColumnName("terms");
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .IsRequired()
+                .HasDefaultValue(AgreementStatus.Pending);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.AcceptedAt).HasColumnName("accepted_at");
             entity.Property(e => e.CompletedAt).HasColumnName("completed_at");
@@ -185,14 +190,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasForeignKey(e => e.OfferId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.Buyer)
-                .WithMany(u => u.BuyerAgreements)
-                .HasForeignKey(e => e.BuyerId)
+            entity.HasOne(e => e.Requester)
+                .WithMany(u => u.RequesterAgreements)
+                .HasForeignKey(e => e.RequesterId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(e => e.Seller)
-                .WithMany(u => u.SellerAgreements)
-                .HasForeignKey(e => e.SellerId)
+            entity.HasOne(e => e.Provider)
+                .WithMany(u => u.ProviderAgreements)
+                .HasForeignKey(e => e.ProviderId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
@@ -220,8 +225,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.AgreementId).HasColumnName("agreement_id");
             entity.Property(e => e.MilestoneId).HasColumnName("milestone_id");
-            entity.Property(e => e.PayerId).HasColumnName("payer_id");
-            entity.Property(e => e.PayeeId).HasColumnName("payee_id");
+            entity.Property(e => e.TipFromUserId).HasColumnName("tip_from_user_id");
+            entity.Property(e => e.TipToUserId).HasColumnName("tip_to_user_id");
             entity.Property(e => e.Amount).HasColumnName("amount").HasColumnType("numeric");
             entity.Property(e => e.Currency).HasColumnName("currency").HasDefaultValue("USD");
             entity.Property(e => e.PaymentType).HasColumnName("payment_type").IsRequired();
@@ -241,14 +246,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasForeignKey(e => e.MilestoneId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasOne(e => e.Payer)
-                .WithMany(u => u.PayerPayments)
-                .HasForeignKey(e => e.PayerId)
+            entity.HasOne(e => e.TipFromUser)
+                .WithMany(u => u.TipsSent)
+                .HasForeignKey(e => e.TipFromUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(e => e.Payee)
-                .WithMany(u => u.PayeePayments)
-                .HasForeignKey(e => e.PayeeId)
+            entity.HasOne(e => e.TipToUser)
+                .WithMany(u => u.TipsReceived)
+                .HasForeignKey(e => e.TipToUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

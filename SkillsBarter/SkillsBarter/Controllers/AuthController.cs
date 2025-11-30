@@ -18,17 +18,20 @@ public class AuthController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly ITokenService _tokenService;
+    private readonly IUserService _userService;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         ITokenService tokenService,
+        IUserService userService,
         ILogger<AuthController> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _tokenService = tokenService;
+        _userService = userService;
         _logger = logger;
     }
 
@@ -136,30 +139,44 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                Message = "Validation failed",
+                Errors = errors
+            });
+        }
 
-        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-            return BadRequest(new AuthResponse { Success = false, Message = "Email and password are required" });
+        // Normalizing email to lowercase for consistency,
+        // since some users may use upper case
+        var normalizedEmail = request.Email.ToLowerInvariant().Trim();
 
-        if (request.Password != request.ConfirmPassword)
-            return BadRequest(new AuthResponse { Success = false, Message = "Passwords do not match" });
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new AuthResponse { Success = false, Message = "Name is required" });
-
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
+        // Checking if user already exists
+        var existingUser = await _userManager.FindByEmailAsync(normalizedEmail);
         if (existingUser != null)
-            return BadRequest(new AuthResponse { Success = false, Message = "User with this email already exists" });
+        {
+            _logger.LogWarning($"Registration attempt with existing email: {normalizedEmail}");
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                Message = "User with this email already exists"
+            });
+        }
 
         var user = new ApplicationUser
         {
             Id = Guid.NewGuid(),
-            UserName = request.Email,
-            Email = request.Email,
-            Name = request.Name,
-            Description = request.Description,
-            EmailConfirmed = false,
-            CreatedAt = DateTime.UtcNow,
+            UserName = normalizedEmail,
+            Email = normalizedEmail,
+            Name = request.Name.Trim(),
+            Description = request.Description?.Trim(),
+            // Until email service is set up, we mark email as confirmed
+            EmailConfirmed = false, 
             UpdatedAt = DateTime.UtcNow
         };
 
@@ -168,6 +185,7 @@ public class AuthController : ControllerBase
         if (!result.Succeeded)
         {
             var errors = result.Errors.Select(e => e.Description).ToList();
+            _logger.LogError($"Failed to create user {normalizedEmail}: {string.Join(", ", errors)}");
             return BadRequest(new AuthResponse
             {
                 Success = false,
@@ -176,20 +194,44 @@ public class AuthController : ControllerBase
             });
         }
 
-        _logger.LogInformation($"User {user.Email} registered successfully");
-
-        // Assigning default Freemium role to new user
-        await _userManager.AddToRoleAsync(user, "Freemium");
-        var roles = await _userManager.GetRolesAsync(user);
-        var token = _tokenService.GenerateAccessToken(user, roles);
-
-        return Ok(new AuthResponse
+        try
         {
-            Success = true,
-            Message = "User registered successfully",
-            Token = token,
-            User = await MapToUserDto(user)
-        });
+            // Assigning default Freemium role to new user
+            var roleResult = await _userManager.AddToRoleAsync(user, "Freemium");
+            if (!roleResult.Succeeded)
+            {
+                _logger.LogWarning($"Failed to assign Freemium role to user {user.Email}");
+            }
+
+            _logger.LogInformation($"User {user.Email} registered successfully with ID: {user.Id}");
+
+            // Getting user roles and generating JWT token
+            var roles = await _userManager.GetRolesAsync(user);
+            var token = _tokenService.GenerateAccessToken(user, roles);
+
+            return Ok(new AuthResponse
+            {
+                Success = true,
+                Message = "User registered successfully",
+                Token = token,
+                User = await MapToUserDto(user)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error during post-registration setup for user {user.Email}");
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var token = _tokenService.GenerateAccessToken(user, roles);
+
+            return Ok(new AuthResponse
+            {
+                Success = true,
+                Message = "User registered successfully",
+                Token = token,
+                User = await MapToUserDto(user)
+            });
+        }
     }
 
     [HttpPost("login")]
@@ -201,12 +243,12 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
             return BadRequest(new AuthResponse { Success = false, Message = "Email and password are required" });
 
-        // Find user by email
+        // Finding user by email
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null)
             return Unauthorized(new AuthResponse { Success = false, Message = "Invalid email or password" });
 
-        // Check password
+        // Checking password
         var passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
         if (!passwordValid)
         {
@@ -238,18 +280,28 @@ public class AuthController : ControllerBase
         return Ok(new { success = true, message = "Successfully logged out. Please remove the token from client." });
     }
 
-    [HttpGet("me")]
+    [HttpGet("profile")]
     [Authorize]
-    public async Task<IActionResult> GetCurrentUser()
+    public async Task<IActionResult> GetCurrentUserProfile()
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null)
-            return Unauthorized(new AuthResponse { Success = false, Message = "User not found" });
-
-        return Ok(new AuthResponse
         {
-            Success = true,
-            User = await MapToUserDto(user)
+            _logger.LogWarning("Unauthorized access attempt to profile endpoint");
+            return Unauthorized(new { success = false, message = "User not found" });
+        }
+
+        var detailedProfile = await _userService.GetDetailedProfileAsync(user.Id);
+        if (detailedProfile == null)
+        {
+            _logger.LogError("Failed to retrieve detailed profile for user {UserId}", user.Id);
+            return StatusCode(500, new { success = false, message = "Failed to retrieve user profile" });
+        }
+
+        return Ok(new
+        {
+            success = true,
+            profile = detailedProfile
         });
     }
 
