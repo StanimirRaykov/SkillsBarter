@@ -136,38 +136,55 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         if (!ModelState.IsValid)
-            return BadRequest(ModelState);
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                Message = "Validation failed",
+                Errors = errors
+            });
+        }
 
-        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
-            return BadRequest(new AuthResponse { Success = false, Message = "Email and password are required" });
+        // Normalizing email to lowercase for consistency,
+        // since some users may use upper case
+        var normalizedEmail = request.Email.ToLowerInvariant().Trim();
 
-        if (request.Password != request.ConfirmPassword)
-            return BadRequest(new AuthResponse { Success = false, Message = "Passwords do not match" });
-
-        if (string.IsNullOrWhiteSpace(request.Name))
-            return BadRequest(new AuthResponse { Success = false, Message = "Name is required" });
-
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
+        // Checking if user already exists
+        var existingUser = await _userManager.FindByEmailAsync(normalizedEmail);
         if (existingUser != null)
-            return BadRequest(new AuthResponse { Success = false, Message = "User with this email already exists" });
+        {
+            _logger.LogWarning($"Registration attempt with existing email: {normalizedEmail}");
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                Message = "User with this email already exists"
+            });
+        }
 
+        // Creating new user
         var user = new ApplicationUser
         {
             Id = Guid.NewGuid(),
-            UserName = request.Email,
-            Email = request.Email,
-            Name = request.Name,
-            Description = request.Description,
-            EmailConfirmed = false,
+            UserName = normalizedEmail,
+            Email = normalizedEmail,
+            Name = request.Name.Trim(),
+            Description = request.Description?.Trim(),
+            EmailConfirmed = false, // Can be set to true if email verification is not required
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
+        // Creating user with password (password is automatically hashed by UserManager)
         var result = await _userManager.CreateAsync(user, request.Password);
 
         if (!result.Succeeded)
         {
             var errors = result.Errors.Select(e => e.Description).ToList();
+            _logger.LogError($"Failed to create user {normalizedEmail}: {string.Join(", ", errors)}");
             return BadRequest(new AuthResponse
             {
                 Success = false,
@@ -176,20 +193,44 @@ public class AuthController : ControllerBase
             });
         }
 
-        _logger.LogInformation($"User {user.Email} registered successfully");
-
-        // Assigning default Freemium role to new user
-        await _userManager.AddToRoleAsync(user, "Freemium");
-        var roles = await _userManager.GetRolesAsync(user);
-        var token = _tokenService.GenerateAccessToken(user, roles);
-
-        return Ok(new AuthResponse
+        try
         {
-            Success = true,
-            Message = "User registered successfully",
-            Token = token,
-            User = await MapToUserDto(user)
-        });
+            // Assigning default Freemium role to new user
+            var roleResult = await _userManager.AddToRoleAsync(user, "Freemium");
+            if (!roleResult.Succeeded)
+            {
+                _logger.LogWarning($"Failed to assign Freemium role to user {user.Email}");
+            }
+
+            _logger.LogInformation($"User {user.Email} registered successfully with ID: {user.Id}");
+
+            // Getting user roles and generate JWT token
+            var roles = await _userManager.GetRolesAsync(user);
+            var token = _tokenService.GenerateAccessToken(user, roles);
+
+            return Ok(new AuthResponse
+            {
+                Success = true,
+                Message = "User registered successfully",
+                Token = token,
+                User = await MapToUserDto(user)
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Error during post-registration setup for user {user.Email}");
+
+            var roles = await _userManager.GetRolesAsync(user);
+            var token = _tokenService.GenerateAccessToken(user, roles);
+
+            return Ok(new AuthResponse
+            {
+                Success = true,
+                Message = "User registered successfully",
+                Token = token,
+                User = await MapToUserDto(user)
+            });
+        }
     }
 
     [HttpPost("login")]
@@ -201,12 +242,12 @@ public class AuthController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
             return BadRequest(new AuthResponse { Success = false, Message = "Email and password are required" });
 
-        // Find user by email
+        // Finding user by email
         var user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null)
             return Unauthorized(new AuthResponse { Success = false, Message = "Invalid email or password" });
 
-        // Check password
+        // Checking password
         var passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
         if (!passwordValid)
         {
