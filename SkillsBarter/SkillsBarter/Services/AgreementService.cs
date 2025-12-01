@@ -185,6 +185,38 @@ public class AgreementService : IAgreementService
         }
     }
 
+    public async Task<AgreementDetailResponse?> GetAgreementDetailByIdAsync(Guid agreementId)
+    {
+        try
+        {
+            var agreement = await _dbContext.Agreements
+                .Include(a => a.Requester)
+                .Include(a => a.Provider)
+                .Include(a => a.Offer)
+                    .ThenInclude(o => o.Skill)
+                .Include(a => a.Milestones)
+                .Include(a => a.Payments)
+                .Include(a => a.Reviews)
+                    .ThenInclude(r => r.Reviewer)
+                .Include(a => a.Reviews)
+                    .ThenInclude(r => r.Recipient)
+                .FirstOrDefaultAsync(a => a.Id == agreementId);
+
+            if (agreement == null)
+            {
+                _logger.LogWarning("Agreement {AgreementId} not found", agreementId);
+                return null;
+            }
+
+            return MapToAgreementDetailResponse(agreement);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving agreement details {AgreementId}", agreementId);
+            throw;
+        }
+    }
+
     private AgreementResponse MapToAgreementResponse(Agreement agreement)
     {
         return new AgreementResponse
@@ -198,6 +230,77 @@ public class AgreementService : IAgreementService
             CreatedAt = agreement.CreatedAt,
             AcceptedAt = agreement.AcceptedAt,
             CompletedAt = agreement.CompletedAt
+        };
+    }
+
+    private AgreementDetailResponse MapToAgreementDetailResponse(Agreement agreement)
+    {
+        return new AgreementDetailResponse
+        {
+            Id = agreement.Id,
+            OfferId = agreement.OfferId,
+            RequesterId = agreement.RequesterId,
+            ProviderId = agreement.ProviderId,
+            Terms = agreement.Terms,
+            Status = agreement.Status,
+            CreatedAt = agreement.CreatedAt,
+            AcceptedAt = agreement.AcceptedAt,
+            CompletedAt = agreement.CompletedAt,
+            Requester = new AgreementUserInfo
+            {
+                Id = agreement.Requester.Id,
+                Name = agreement.Requester.Name,
+                Email = agreement.Requester.Email ?? string.Empty,
+                VerificationLevel = agreement.Requester.VerificationLevel,
+                ReputationScore = agreement.Requester.ReputationScore
+            },
+            Provider = new AgreementUserInfo
+            {
+                Id = agreement.Provider.Id,
+                Name = agreement.Provider.Name,
+                Email = agreement.Provider.Email ?? string.Empty,
+                VerificationLevel = agreement.Provider.VerificationLevel,
+                ReputationScore = agreement.Provider.ReputationScore
+            },
+            Offer = new AgreementOfferInfo
+            {
+                Id = agreement.Offer.Id,
+                Title = agreement.Offer.Title,
+                Description = agreement.Offer.Description,
+                SkillName = agreement.Offer.Skill.Name,
+                StatusCode = agreement.Offer.StatusCode.ToString()
+            },
+            Milestones = agreement.Milestones.Select(m => new MilestoneInfo
+            {
+                Id = m.Id,
+                Title = m.Title,
+                Amount = m.Amount,
+                Status = m.Status,
+                DueAt = m.DueAt
+            }).ToList(),
+            Payments = agreement.Payments.Select(p => new PaymentInfo
+            {
+                Id = p.Id,
+                MilestoneId = p.MilestoneId,
+                TipFromUserId = p.TipFromUserId,
+                TipToUserId = p.TipToUserId,
+                Amount = p.Amount,
+                Currency = p.Currency,
+                PaymentType = p.PaymentType,
+                Status = p.Status,
+                CreatedAt = p.CreatedAt
+            }).ToList(),
+            Reviews = agreement.Reviews.Select(r => new ReviewInfo
+            {
+                Id = r.Id,
+                ReviewerId = r.ReviewerId,
+                ReviewerName = r.Reviewer.Name,
+                RecipientId = r.RecipientId,
+                RecipientName = r.Recipient.Name,
+                Rating = r.Rating,
+                Body = r.Body,
+                CreatedAt = r.CreatedAt
+            }).ToList()
         };
     }
 }
