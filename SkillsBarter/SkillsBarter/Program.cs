@@ -119,6 +119,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAgreementService, AgreementService>();
 builder.Services.AddScoped<RoleSeeder>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
 
 builder.Services.AddMemoryCache();
 builder.Services.Configure<ClientRateLimitOptions>(builder.Configuration.GetSection("ClientRateLimiting"));

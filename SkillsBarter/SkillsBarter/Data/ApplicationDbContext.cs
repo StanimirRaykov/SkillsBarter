@@ -13,6 +13,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     }
 
     // DbSets
+
+    public DbSet<Notification> Notifications { get; set; }
     public DbSet<SkillCategory> SkillCategories { get; set; }
     public DbSet<Skill> Skills { get; set; }
     public DbSet<OfferStatus> OfferStatuses { get; set; }
