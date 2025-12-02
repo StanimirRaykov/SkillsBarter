@@ -82,13 +82,28 @@ public class AgreementsController : ControllerBase
                 return BadRequest(new { message = "Invalid agreement ID" });
             }
 
-            var agreement = await _agreementService.GetAgreementByIdAsync(id);
-            if (agreement == null)
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            var agreementDetail = await _agreementService.GetAgreementDetailByIdAsync(id);
+            if (agreementDetail == null)
             {
                 return NotFound(new { message = "Agreement not found" });
             }
 
-            return Ok(agreement);
+            if (agreementDetail.RequesterId != currentUser.Id &&
+                agreementDetail.ProviderId != currentUser.Id &&
+                !currentUser.IsModerator)
+            {
+                _logger.LogWarning("User {UserId} attempted to access agreement {AgreementId} without authorization",
+                    currentUser.Id, id);
+                return Forbid();
+            }
+
+            return Ok(agreementDetail);
         }
         catch (Exception ex)
         {
