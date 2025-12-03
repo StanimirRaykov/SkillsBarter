@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SkillsBarter.Constants;
 using SkillsBarter.Data;
+using SkillsBarter.DTOs;
 using SkillsBarter.Models;
 using SkillsBarter.Services;
 using System.Security.Claims;
@@ -303,14 +304,76 @@ public class UsersController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while removing the skill" });
         }
     }
-}
 
-public class AddSkillRequest
-{
-    public int SkillId { get; set; }
-}
+    [HttpGet("profile")]
+    [Authorize]
+    public async Task<IActionResult> GetMyProfile()
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "Invalid user authentication" });
+            }
 
-public class AssignRoleRequest
-{
-    public string RoleName { get; set; } = string.Empty;
+            var profile = await _userService.GetDetailedProfileAsync(userId);
+            if (profile == null)
+            {
+                _logger.LogWarning("Profile not found for authenticated user {UserId}", userId);
+                return NotFound(new { message = "Profile not found" });
+            }
+
+            return Ok(new { success = true, profile });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving profile for authenticated user");
+            return StatusCode(500, new { message = "An error occurred while retrieving your profile" });
+        }
+    }
+
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateProfileRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { message = "Invalid input", errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage) });
+            }
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "Invalid user authentication" });
+            }
+
+            var updatedProfile = await _userService.UpdateProfileAsync(userId, request);
+            if (updatedProfile == null)
+            {
+                _logger.LogWarning("Failed to update profile for user {UserId}", userId);
+                return NotFound(new { message = "Profile not found" });
+            }
+
+            _logger.LogInformation("User {UserId} updated their profile", userId);
+            return Ok(new
+            {
+                success = true,
+                message = "Profile updated successfully",
+                profile = updatedProfile
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Invalid operation while updating profile");
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating profile for authenticated user");
+            return StatusCode(500, new { message = "An error occurred while updating your profile" });
+        }
+    }
 }

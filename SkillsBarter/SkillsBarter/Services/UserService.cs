@@ -216,4 +216,74 @@ public class UserService : IUserService
             throw;
         }
     }
+
+    public async Task<DetailedUserProfileResponse?> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
+    {
+        try
+        {
+            var user = await _dbContext.Users
+                .Include(u => u.UserSkills)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+
+            if (user == null)
+            {
+                _logger.LogWarning("User not found with ID: {UserId}", userId);
+                return null;
+            }
+
+            if (request.Name != null)
+            {
+                user.Name = request.Name;
+            }
+
+            if (request.Description != null)
+            {
+                user.Description = request.Description;
+            }
+
+            if (request.PhoneNumber != null)
+            {
+                user.PhoneNumber = request.PhoneNumber;
+            }
+
+            if (request.SkillIds != null)
+            {
+                var validSkillIds = await _dbContext.Skills
+                    .Where(s => request.SkillIds.Contains(s.Id))
+                    .Select(s => s.Id)
+                    .ToListAsync();
+
+                if (validSkillIds.Count != request.SkillIds.Count)
+                {
+                    var invalidSkillIds = request.SkillIds.Except(validSkillIds).ToList();
+                    _logger.LogWarning("Invalid skill IDs provided: {InvalidSkillIds}", string.Join(", ", invalidSkillIds));
+                    throw new InvalidOperationException($"Invalid skill IDs: {string.Join(", ", invalidSkillIds)}");
+                }
+
+                var existingSkills = user.UserSkills.ToList();
+                _dbContext.UserSkills.RemoveRange(existingSkills);
+
+                var newUserSkills = request.SkillIds.Select(skillId => new UserSkill
+                {
+                    UserId = userId,
+                    SkillId = skillId,
+                    AddedAt = DateTime.UtcNow
+                }).ToList();
+
+                await _dbContext.UserSkills.AddRangeAsync(newUserSkills);
+            }
+
+            user.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation("Updated profile for user {UserId}", userId);
+
+            return await GetDetailedProfileAsync(userId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating profile for user {UserId}", userId);
+            throw;
+        }
+    }
 }
