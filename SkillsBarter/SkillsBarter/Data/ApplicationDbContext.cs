@@ -25,6 +25,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Dispute> Disputes { get; set; }
     public DbSet<DisputeMessage> DisputeMessages { get; set; }
     public DbSet<Review> Reviews { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -334,6 +335,28 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .WithMany(a => a.Reviews)
                 .HasForeignKey(e => e.AgreementId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("notifications");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+            entity.Property(e => e.Title).HasColumnName("title").IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Message).HasColumnName("message").IsRequired();
+            entity.Property(e => e.Type).HasColumnName("type").IsRequired().HasMaxLength(64);
+            entity.Property(e => e.IsRead).HasColumnName("is_read").HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.ReadAt).HasColumnName("read_at");
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => new { e.UserId, e.IsRead, e.CreatedAt });
         });
     }
 }
