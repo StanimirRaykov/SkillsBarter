@@ -168,6 +168,61 @@ public class ReviewService : IReviewService
         }
     }
 
+    public async Task<UserReviewsWithSummaryResponse> GetUserReviewsWithSummaryAsync(Guid userId, int page = 1, int pageSize = 10)
+    {
+        try
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 100) pageSize = 100;
+
+            var allReviews = await _dbContext.Reviews
+                .Where(r => r.RecipientId == userId)
+                .ToListAsync();
+
+            var summary = new ReviewSummary
+            {
+                TotalReviews = allReviews.Count,
+                AverageRating = allReviews.Any() ? (decimal)allReviews.Average(r => r.Rating) : 0
+            };
+
+            var query = _dbContext.Reviews
+                .Include(r => r.Recipient)
+                .Include(r => r.Reviewer)
+                .Where(r => r.RecipientId == userId)
+                .OrderByDescending(r => r.CreatedAt);
+
+            var total = await query.CountAsync();
+
+            var reviews = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var reviewResponses = reviews.Select(r =>
+                MapToReviewResponse(r, r.Recipient.Name, r.Reviewer.Name, r.AgreementId)).ToList();
+
+            var paginatedReviews = new PaginatedResponse<ReviewResponse>
+            {
+                Items = reviewResponses,
+                Page = page,
+                PageSize = pageSize,
+                Total = total
+            };
+
+            return new UserReviewsWithSummaryResponse
+            {
+                Summary = summary,
+                Reviews = paginatedReviews
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving reviews with summary for user: {UserId}", userId);
+            throw;
+        }
+    }
+
     private ReviewResponse MapToReviewResponse(Review review, string recipientName, string reviewerName, Guid agreementId)
     {
         return new ReviewResponse

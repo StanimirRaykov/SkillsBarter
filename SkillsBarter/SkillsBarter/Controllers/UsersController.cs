@@ -12,17 +12,20 @@ namespace SkillsBarter.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly IReviewService _reviewService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleSeeder _roleSeeder;
     private readonly ILogger<UsersController> _logger;
 
     public UsersController(
         IUserService userService,
+        IReviewService reviewService,
         UserManager<ApplicationUser> userManager,
         RoleSeeder roleSeeder,
         ILogger<UsersController> logger)
     {
         _userService = userService;
+        _reviewService = reviewService;
         _userManager = userManager;
         _roleSeeder = roleSeeder;
         _logger = logger;
@@ -169,6 +172,38 @@ public class UsersController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving user details for ID: {UserId}", id);
             return StatusCode(500, new { message = "An error occurred while retrieving user details" });
+        }
+    }
+
+    [HttpGet("{id:guid}/reviews")]
+    public async Task<IActionResult> GetUserReviews(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        try
+        {
+            if (id == Guid.Empty)
+            {
+                _logger.LogWarning("Invalid user ID provided to reviews endpoint");
+                return BadRequest(new { message = "Invalid user ID" });
+            }
+
+            var user = await _userManager.FindByIdAsync(id.ToString());
+            if (user == null)
+            {
+                _logger.LogWarning("User not found for reviews endpoint: {UserId}", id);
+                return NotFound(new { message = "User not found" });
+            }
+
+            var reviewsWithSummary = await _reviewService.GetUserReviewsWithSummaryAsync(id, page, pageSize);
+
+            _logger.LogInformation("Retrieved reviews for user {UserId} - Total: {Total}, Page: {Page}",
+                id, reviewsWithSummary.Summary.TotalReviews, page);
+
+            return Ok(reviewsWithSummary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving reviews for user: {UserId}", id);
+            return StatusCode(500, new { message = "An error occurred while retrieving reviews" });
         }
     }
 }
