@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Resend;
 using SkillsBarter.Configuration;
 using SkillsBarter.Data;
 using SkillsBarter.Models;
@@ -119,6 +120,22 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAgreementService, AgreementService>();
 builder.Services.AddScoped<RoleSeeder>();
+
+var resendApiKey = builder.Configuration["Resend:ApiKey"];
+if (!string.IsNullOrEmpty(resendApiKey))
+{
+    builder.Services.AddOptions<ResendClientOptions>().Configure(o =>
+    {
+        o.ApiToken = resendApiKey;
+    });
+    builder.Services.AddHttpClient<ResendClient>();
+    builder.Services.AddTransient<IResend, ResendClient>();
+    builder.Services.AddScoped<IEmailService, EmailService>();
+}
+else
+{
+    builder.Services.AddScoped<IEmailService, EmailService>();
+}
 
 builder.Services.AddMemoryCache();
 builder.Services.Configure<ClientRateLimitOptions>(builder.Configuration.GetSection("ClientRateLimiting"));

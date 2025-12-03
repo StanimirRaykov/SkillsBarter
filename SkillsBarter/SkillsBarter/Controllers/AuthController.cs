@@ -1,10 +1,13 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authentication.Facebook;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
 using SkillsBarter.Services;
@@ -19,6 +22,8 @@ public class AuthController : ControllerBase
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly ITokenService _tokenService;
     private readonly IUserService _userService;
+    private readonly IEmailService _emailService;
+    private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
@@ -26,12 +31,16 @@ public class AuthController : ControllerBase
         SignInManager<ApplicationUser> signInManager,
         ITokenService tokenService,
         IUserService userService,
+        IEmailService emailService,
+        ApplicationDbContext dbContext,
         ILogger<AuthController> logger)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _tokenService = tokenService;
         _userService = userService;
+        _emailService = emailService;
+        _dbContext = dbContext;
         _logger = logger;
     }
 
@@ -168,6 +177,9 @@ public class AuthController : ControllerBase
             });
         }
 
+        // Generating email verification token
+        string verificationToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
         var user = new ApplicationUser
         {
             Id = Guid.NewGuid(),
@@ -175,8 +187,9 @@ public class AuthController : ControllerBase
             Email = normalizedEmail,
             Name = request.Name.Trim(),
             Description = request.Description?.Trim(),
-            // Until email service is set up, we mark email as confirmed
-            EmailConfirmed = false, 
+            EmailConfirmed = false,
+            EmailVerificationToken = verificationToken,
+            EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(24),
             UpdatedAt = DateTime.UtcNow
         };
 
@@ -203,6 +216,38 @@ public class AuthController : ControllerBase
                 _logger.LogWarning($"Failed to assign Freemium role to user {user.Email}");
             }
 
+            if (request.SkillIds != null && request.SkillIds.Any())
+            {
+                var validSkillIds = await _dbContext.Skills
+                    .Where(s => request.SkillIds.Contains(s.Id))
+                    .Select(s => s.Id)
+                    .ToListAsync();
+
+                var userSkills = validSkillIds.Select(skillId => new UserSkill
+                {
+                    UserId = user.Id,
+                    SkillId = skillId,
+                    AddedAt = DateTime.UtcNow
+                }).ToList();
+
+                if (userSkills.Any())
+                {
+                    await _dbContext.UserSkills.AddRangeAsync(userSkills);
+                    await _dbContext.SaveChangesAsync();
+                    _logger.LogInformation($"Added {userSkills.Count} skills to user {user.Email}");
+                }
+            }
+
+            try
+            {
+                await _emailService.SendVerificationEmailAsync(user.Email!, user.Name, verificationToken);
+                _logger.LogInformation($"Verification email sent to {user.Email}");
+            }
+            catch (Exception emailEx)
+            {
+                _logger.LogError(emailEx, $"Failed to send verification email to {user.Email}");
+            }
+
             _logger.LogInformation($"User {user.Email} registered successfully with ID: {user.Id}");
 
             // Getting user roles and generating JWT token
@@ -212,7 +257,7 @@ public class AuthController : ControllerBase
             return Ok(new AuthResponse
             {
                 Success = true,
-                Message = "User registered successfully",
+                Message = "User registered successfully. Please check your email to verify your account.",
                 Token = token,
                 User = await MapToUserDto(user)
             });
@@ -227,7 +272,7 @@ public class AuthController : ControllerBase
             return Ok(new AuthResponse
             {
                 Success = true,
-                Message = "User registered successfully",
+                Message = "User registered successfully. Please check your email to verify your account.",
                 Token = token,
                 User = await MapToUserDto(user)
             });
@@ -248,7 +293,6 @@ public class AuthController : ControllerBase
         if (user == null)
             return Unauthorized(new AuthResponse { Success = false, Message = "Invalid email or password" });
 
-        // Checking password
         var passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
         if (!passwordValid)
         {
@@ -302,6 +346,58 @@ public class AuthController : ControllerBase
         {
             success = true,
             profile = detailedProfile
+        });
+    }
+
+    [HttpGet("verify-email")]
+    public async Task<IActionResult> VerifyEmail([FromQuery] string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return BadRequest(new { success = false, message = "Token is required" });
+        }
+
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.EmailVerificationToken == token);
+
+        if (user == null)
+        {
+            _logger.LogWarning($"Email verification attempted with invalid token");
+            return BadRequest(new { success = false, message = "Invalid verification token" });
+        }
+
+        if (user.EmailVerificationTokenExpiry == null || user.EmailVerificationTokenExpiry < DateTime.UtcNow)
+        {
+            _logger.LogWarning($"Email verification attempted with expired token for user {user.Email}");
+            return BadRequest(new { success = false, message = "Verification token has expired" });
+        }
+
+        if (user.EmailConfirmed)
+        {
+            _logger.LogInformation($"Email verification attempted for already verified user {user.Email}");
+            return Ok(new { success = true, message = "Email already verified" });
+        }
+
+        user.EmailConfirmed = true;
+        user.EmailVerificationToken = null;
+        user.EmailVerificationTokenExpiry = null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        var result = await _userManager.UpdateAsync(user);
+
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.Select(e => e.Description).ToList();
+            _logger.LogError($"Failed to verify email for user {user.Email}: {string.Join(", ", errors)}");
+            return StatusCode(500, new { success = false, message = "Failed to verify email", errors });
+        }
+
+        _logger.LogInformation($"Email verified successfully for user {user.Email}");
+
+        return Ok(new
+        {
+            success = true,
+            message = "Email verified successfully. You can now log in."
         });
     }
 

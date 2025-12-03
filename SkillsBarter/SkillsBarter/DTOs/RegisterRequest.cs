@@ -25,4 +25,6 @@ public class RegisterRequest
 
     [MaxLength(500, ErrorMessage = "Description cannot exceed 500 characters")]
     public string? Description { get; set; }
+
+    public List<int> SkillIds { get; set; } = new();
 }

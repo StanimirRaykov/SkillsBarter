@@ -48,7 +48,6 @@ public class SkillService : ISkillService
 
             var skill = new Skill
             {
-                Id = Guid.NewGuid(),
                 Name = request.Name.Trim(),
                 CategoryCode = request.CategoryCode
             };
@@ -113,7 +112,7 @@ public class SkillService : ISkillService
         }
     }
 
-    public async Task<SkillResponse?> GetSkillByIdAsync(Guid id)
+    public async Task<SkillResponse?> GetSkillByIdAsync(int id)
     {
         try
         {

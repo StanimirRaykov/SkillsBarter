@@ -73,8 +73,8 @@ public class SkillsController : ControllerBase
         }
     }
 
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetSkillById(Guid id)
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetSkillById(int id)
     {
         try
         {

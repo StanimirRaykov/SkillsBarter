@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SkillsBarter.Data;
@@ -11,9 +12,11 @@ using SkillsBarter.Data;
 namespace SkillsBarter.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251203095423_AddUserSkillsJunctionTable")]
+    partial class AddUserSkillsJunctionTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -462,8 +465,8 @@ namespace SkillsBarter.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer")
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid")
                         .HasColumnName("skill_id");
 
                     b.Property<string>("StatusCode")
@@ -714,12 +717,10 @@ namespace SkillsBarter.Migrations
 
             modelBuilder.Entity("SkillsBarter.Models.Skill", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("CategoryCode")
                         .IsRequired()
@@ -760,8 +761,8 @@ namespace SkillsBarter.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
 
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer")
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid")
                         .HasColumnName("skill_id");
 
                     b.Property<DateTime>("AddedAt")

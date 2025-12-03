@@ -14,7 +14,7 @@ public class PublicUserProfileResponse
 
 public class UserSkillDto
 {
-    public Guid SkillId { get; set; }
+    public int SkillId { get; set; }
     public string SkillName { get; set; } = string.Empty;
     public string CategoryCode { get; set; } = string.Empty;
     public int ActiveOffersCount { get; set; }

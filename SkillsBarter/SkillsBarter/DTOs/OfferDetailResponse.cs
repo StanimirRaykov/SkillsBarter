@@ -4,7 +4,7 @@ public class OfferDetailResponse
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
-    public Guid SkillId { get; set; }
+    public int SkillId { get; set; }
     public string SkillName { get; set; } = string.Empty;
     public string SkillCategoryCode { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;

@@ -1,9 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SkillsBarter.Constants;
+using SkillsBarter.Data;
 using SkillsBarter.Models;
 using SkillsBarter.Services;
+using System.Security.Claims;
 
 namespace SkillsBarter.Controllers;
 
@@ -12,18 +15,24 @@ namespace SkillsBarter.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
+    private readonly IReviewService _reviewService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ApplicationDbContext _dbContext;
     private readonly RoleSeeder _roleSeeder;
     private readonly ILogger<UsersController> _logger;
 
     public UsersController(
         IUserService userService,
+        IReviewService reviewService,
         UserManager<ApplicationUser> userManager,
+        ApplicationDbContext dbContext,
         RoleSeeder roleSeeder,
         ILogger<UsersController> logger)
     {
         _userService = userService;
+        _reviewService = reviewService;
         _userManager = userManager;
+        _dbContext = dbContext;
         _roleSeeder = roleSeeder;
         _logger = logger;
     }
@@ -171,6 +180,134 @@ public class UsersController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while retrieving user details" });
         }
     }
+
+    [HttpGet("{id:guid}/reviews")]
+    public async Task<IActionResult> GetUserReviews(Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    {
+        try
+        {
+            if (id == Guid.Empty)
+            {
+                _logger.LogWarning("Invalid user ID provided to reviews endpoint");
+                return BadRequest(new { message = "Invalid user ID" });
+            }
+
+            var user = await _userManager.FindByIdAsync(id.ToString());
+            if (user == null)
+            {
+                _logger.LogWarning("User not found for reviews endpoint: {UserId}", id);
+                return NotFound(new { message = "User not found" });
+            }
+
+            var reviewsWithSummary = await _reviewService.GetUserReviewsWithSummaryAsync(id, page, pageSize);
+
+            _logger.LogInformation("Retrieved reviews for user {UserId} - Total: {Total}, Page: {Page}",
+                id, reviewsWithSummary.Summary.TotalReviews, page);
+
+            return Ok(reviewsWithSummary);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving reviews for user: {UserId}", id);
+            return StatusCode(500, new { message = "An error occurred while retrieving reviews" });
+        }
+    }
+
+    [HttpPost("{id:guid}/skills")]
+    [Authorize]
+    public async Task<IActionResult> AddUserSkill(Guid id, [FromBody] AddSkillRequest request)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                return Unauthorized(new { message = "Invalid user authentication" });
+            }
+
+            if (currentUserId != id)
+            {
+                return StatusCode(403, new { message = "You can only add skills to your own profile" });
+            }
+
+            var skillExists = await _dbContext.Skills.AnyAsync(s => s.Id == request.SkillId);
+            if (!skillExists)
+            {
+                return BadRequest(new { message = "Skill not found" });
+            }
+
+            var userSkillExists = await _dbContext.UserSkills
+                .AnyAsync(us => us.UserId == id && us.SkillId == request.SkillId);
+
+            if (userSkillExists)
+            {
+                return BadRequest(new { message = "User already has this skill" });
+            }
+
+            var userSkill = new UserSkill
+            {
+                UserId = id,
+                SkillId = request.SkillId,
+                AddedAt = DateTime.UtcNow
+            };
+
+            await _dbContext.UserSkills.AddAsync(userSkill);
+            await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} added skill {SkillId}", id, request.SkillId);
+
+            return Ok(new { message = "Skill added successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding skill for user: {UserId}", id);
+            return StatusCode(500, new { message = "An error occurred while adding the skill" });
+        }
+    }
+
+    [HttpDelete("{id:guid}/skills/{skillId:int}")]
+    [Authorize]
+    public async Task<IActionResult> RemoveUserSkill(Guid id, int skillId)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var currentUserId))
+            {
+                return Unauthorized(new { message = "Invalid user authentication" });
+            }
+
+            if (currentUserId != id)
+            {
+                return StatusCode(403, new { message = "You can only remove skills from your own profile" });
+            }
+
+            var userSkill = await _dbContext.UserSkills
+                .FirstOrDefaultAsync(us => us.UserId == id && us.SkillId == skillId);
+
+            if (userSkill == null)
+            {
+                return NotFound(new { message = "User skill not found" });
+            }
+
+            _dbContext.UserSkills.Remove(userSkill);
+            await _dbContext.SaveChangesAsync();
+
+            _logger.LogInformation("User {UserId} removed skill {SkillId}", id, skillId);
+
+            return Ok(new { message = "Skill removed successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error removing skill for user: {UserId}", id);
+            return StatusCode(500, new { message = "An error occurred while removing the skill" });
+        }
+    }
+}
+
+public class AddSkillRequest
+{
+    public int SkillId { get; set; }
 }
 
 public class AssignRoleRequest

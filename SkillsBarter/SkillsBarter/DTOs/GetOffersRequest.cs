@@ -3,7 +3,7 @@ namespace SkillsBarter.DTOs;
 public class GetOffersRequest
 {
     public string? Q { get; set; }
-    public Guid? SkillId { get; set; }
+    public int? SkillId { get; set; }
     public string? Skill { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
