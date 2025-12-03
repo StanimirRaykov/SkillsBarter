@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SkillsBarter.Data;
@@ -11,9 +12,11 @@ using SkillsBarter.Data;
 namespace SkillsBarter.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251202214632_AddNotifications")]
+    partial class AddNotifications
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -515,8 +518,8 @@ namespace SkillsBarter.Migrations
                         .HasColumnType("text")
                         .HasColumnName("description");
 
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer")
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid")
                         .HasColumnName("skill_id");
 
                     b.Property<string>("StatusCode")
@@ -767,12 +770,10 @@ namespace SkillsBarter.Migrations
 
             modelBuilder.Entity("SkillsBarter.Models.Skill", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
+                        .HasColumnType("uuid")
                         .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("CategoryCode")
                         .IsRequired()
@@ -805,29 +806,6 @@ namespace SkillsBarter.Migrations
                     b.HasKey("Code");
 
                     b.ToTable("skill_categories", (string)null);
-                });
-
-            modelBuilder.Entity("SkillsBarter.Models.UserSkill", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("user_id");
-
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer")
-                        .HasColumnName("skill_id");
-
-                    b.Property<DateTime>("AddedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("added_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.HasKey("UserId", "SkillId");
-
-                    b.HasIndex("SkillId");
-
-                    b.ToTable("user_skills", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -1120,25 +1098,6 @@ namespace SkillsBarter.Migrations
                     b.Navigation("Category");
                 });
 
-            modelBuilder.Entity("SkillsBarter.Models.UserSkill", b =>
-                {
-                    b.HasOne("SkillsBarter.Models.Skill", "Skill")
-                        .WithMany("UserSkills")
-                        .HasForeignKey("SkillId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "User")
-                        .WithMany("UserSkills")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Skill");
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("SkillsBarter.Models.Agreement", b =>
                 {
                     b.Navigation("Disputes");
@@ -1175,8 +1134,6 @@ namespace SkillsBarter.Migrations
                     b.Navigation("TipsReceived");
 
                     b.Navigation("TipsSent");
-
-                    b.Navigation("UserSkills");
                 });
 
             modelBuilder.Entity("SkillsBarter.Models.Dispute", b =>
@@ -1214,8 +1171,6 @@ namespace SkillsBarter.Migrations
             modelBuilder.Entity("SkillsBarter.Models.Skill", b =>
                 {
                     b.Navigation("Offers");
-
-                    b.Navigation("UserSkills");
                 });
 
             modelBuilder.Entity("SkillsBarter.Models.SkillCategory", b =>
