@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
 using SkillsBarter.Services;
@@ -22,6 +23,7 @@ public class AuthController : ControllerBase
     private readonly ITokenService _tokenService;
     private readonly IUserService _userService;
     private readonly IEmailService _emailService;
+    private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<AuthController> _logger;
 
     public AuthController(
@@ -30,6 +32,7 @@ public class AuthController : ControllerBase
         ITokenService tokenService,
         IUserService userService,
         IEmailService emailService,
+        ApplicationDbContext dbContext,
         ILogger<AuthController> logger)
     {
         _userManager = userManager;
@@ -37,6 +40,7 @@ public class AuthController : ControllerBase
         _tokenService = tokenService;
         _userService = userService;
         _emailService = emailService;
+        _dbContext = dbContext;
         _logger = logger;
     }
 
@@ -210,6 +214,28 @@ public class AuthController : ControllerBase
             if (!roleResult.Succeeded)
             {
                 _logger.LogWarning($"Failed to assign Freemium role to user {user.Email}");
+            }
+
+            if (request.SkillIds != null && request.SkillIds.Any())
+            {
+                var validSkillIds = await _dbContext.Skills
+                    .Where(s => request.SkillIds.Contains(s.Id))
+                    .Select(s => s.Id)
+                    .ToListAsync();
+
+                var userSkills = validSkillIds.Select(skillId => new UserSkill
+                {
+                    UserId = user.Id,
+                    SkillId = skillId,
+                    AddedAt = DateTime.UtcNow
+                }).ToList();
+
+                if (userSkills.Any())
+                {
+                    await _dbContext.UserSkills.AddRangeAsync(userSkills);
+                    await _dbContext.SaveChangesAsync();
+                    _logger.LogInformation($"Added {userSkills.Count} skills to user {user.Email}");
+                }
             }
 
             try

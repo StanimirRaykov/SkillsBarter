@@ -27,6 +27,9 @@ public class UserService : IUserService
         try
         {
             var user = await _dbContext.Users
+                .Include(u => u.UserSkills)
+                    .ThenInclude(us => us.Skill)
+                        .ThenInclude(s => s.Category)
                 .Include(u => u.Offers.Where(o => o.StatusCode == OfferStatusCode.Active))
                     .ThenInclude(o => o.Skill)
                 .Include(u => u.ReviewsReceived)
@@ -38,26 +41,51 @@ public class UserService : IUserService
                 return null;
             }
 
-            var skillsWithCounts = user.Offers
-                .GroupBy(o => new { o.SkillId, o.Skill.Name, o.Skill.CategoryCode })
-                .Select(g => new UserSkillDto
+            var directSkills = user.UserSkills
+                .Select(us => new
                 {
-                    SkillId = g.Key.SkillId,
-                    SkillName = g.Key.Name,
-                    CategoryCode = g.Key.CategoryCode,
-                    ActiveOffersCount = g.Count()
+                    SkillId = us.Skill.Id,
+                    SkillName = us.Skill.Name,
+                    CategoryCode = us.Skill.CategoryCode
                 })
-                .OrderByDescending(s => s.ActiveOffersCount)
                 .ToList();
 
-            // Calculating review statistics
+            var offerSkills = user.Offers
+                .Select(o => new
+                {
+                    SkillId = o.Skill.Id,
+                    SkillName = o.Skill.Name,
+                    CategoryCode = o.Skill.CategoryCode
+                })
+                .ToList();
+
+            var allSkillIds = directSkills.Select(s => s.SkillId)
+                .Union(offerSkills.Select(s => s.SkillId))
+                .Distinct();
+
+            var combinedSkills = allSkillIds.Select(skillId =>
+            {
+                var skill = directSkills.FirstOrDefault(s => s.SkillId == skillId)
+                         ?? offerSkills.First(s => s.SkillId == skillId);
+
+                return new UserSkillDto
+                {
+                    SkillId = skill.SkillId,
+                    SkillName = skill.SkillName,
+                    CategoryCode = skill.CategoryCode,
+                    ActiveOffersCount = user.Offers.Count(o => o.SkillId == skillId)
+                };
+            })
+            .OrderByDescending(s => s.ActiveOffersCount)
+            .ThenBy(s => s.SkillName)
+            .ToList();
+
             var reviewsReceived = user.ReviewsReceived.ToList();
             var averageRating = reviewsReceived.Any()
                 ? (decimal)reviewsReceived.Average(r => (decimal)r.Rating)
                 : 0m;
             var totalReviews = reviewsReceived.Count;
 
-            // Count total active offers
             var totalActiveOffers = user.Offers.Count;
 
             var response = new PublicUserProfileResponse
@@ -68,7 +96,7 @@ public class UserService : IUserService
                 VerificationLevel = user.VerificationLevel,
                 ReputationScore = user.ReputationScore,
                 CreatedAt = user.CreatedAt,
-                Skills = skillsWithCounts,
+                Skills = combinedSkills,
                 Stats = new UserStatsDto
                 {
                     AverageRating = Math.Round(averageRating, 2),
@@ -92,6 +120,9 @@ public class UserService : IUserService
         try
         {
             var user = await _dbContext.Users
+                .Include(u => u.UserSkills)
+                    .ThenInclude(us => us.Skill)
+                        .ThenInclude(s => s.Category)
                 .Include(u => u.Offers.Where(o => o.StatusCode == OfferStatusCode.Active))
                     .ThenInclude(o => o.Skill)
                 .Include(u => u.ReviewsReceived)
@@ -105,17 +136,44 @@ public class UserService : IUserService
 
             var roles = await _userManager.GetRolesAsync(user);
 
-            var skillsWithCounts = user.Offers
-                .GroupBy(o => new { o.SkillId, o.Skill.Name, o.Skill.CategoryCode })
-                .Select(g => new UserSkillDto
+            var directSkills = user.UserSkills
+                .Select(us => new
                 {
-                    SkillId = g.Key.SkillId,
-                    SkillName = g.Key.Name,
-                    CategoryCode = g.Key.CategoryCode,
-                    ActiveOffersCount = g.Count()
+                    SkillId = us.Skill.Id,
+                    SkillName = us.Skill.Name,
+                    CategoryCode = us.Skill.CategoryCode
                 })
-                .OrderByDescending(s => s.ActiveOffersCount)
                 .ToList();
+
+            var offerSkills = user.Offers
+                .Select(o => new
+                {
+                    SkillId = o.Skill.Id,
+                    SkillName = o.Skill.Name,
+                    CategoryCode = o.Skill.CategoryCode
+                })
+                .ToList();
+
+            var allSkillIds = directSkills.Select(s => s.SkillId)
+                .Union(offerSkills.Select(s => s.SkillId))
+                .Distinct();
+
+            var combinedSkills = allSkillIds.Select(skillId =>
+            {
+                var skill = directSkills.FirstOrDefault(s => s.SkillId == skillId)
+                         ?? offerSkills.First(s => s.SkillId == skillId);
+
+                return new UserSkillDto
+                {
+                    SkillId = skill.SkillId,
+                    SkillName = skill.SkillName,
+                    CategoryCode = skill.CategoryCode,
+                    ActiveOffersCount = user.Offers.Count(o => o.SkillId == skillId)
+                };
+            })
+            .OrderByDescending(s => s.ActiveOffersCount)
+            .ThenBy(s => s.SkillName)
+            .ToList();
 
             // Calculating review statistics
             var reviewsReceived = user.ReviewsReceived.ToList();
@@ -140,7 +198,7 @@ public class UserService : IUserService
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt,
                 Roles = roles.ToList(),
-                Skills = skillsWithCounts,
+                Skills = combinedSkills,
                 Stats = new UserStatsDto
                 {
                     AverageRating = Math.Round(averageRating, 2),

@@ -15,6 +15,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     // DbSets
     public DbSet<SkillCategory> SkillCategories { get; set; }
     public DbSet<Skill> Skills { get; set; }
+    public DbSet<UserSkill> UserSkills { get; set; }
     public DbSet<OfferStatus> OfferStatuses { get; set; }
     public DbSet<Offer> Offers { get; set; }
     public DbSet<RequestThread> RequestThreads { get; set; }
@@ -66,7 +67,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
         {
             entity.ToTable("skills");
             entity.HasKey(e => e.Id);
-            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Id).HasColumnName("id").ValueGeneratedOnAdd();
             entity.Property(e => e.Name).HasColumnName("name").IsRequired();
             entity.Property(e => e.CategoryCode).HasColumnName("category_code").IsRequired();
 
@@ -74,6 +75,25 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .WithMany(c => c.Skills)
                 .HasForeignKey(e => e.CategoryCode)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<UserSkill>(entity =>
+        {
+            entity.ToTable("user_skills");
+            entity.HasKey(e => new { e.UserId, e.SkillId });
+            entity.Property(e => e.UserId).HasColumnName("user_id");
+            entity.Property(e => e.SkillId).HasColumnName("skill_id");
+            entity.Property(e => e.AddedAt).HasColumnName("added_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.UserSkills)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Skill)
+                .WithMany(s => s.UserSkills)
+                .HasForeignKey(e => e.SkillId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<OfferStatus>(entity =>

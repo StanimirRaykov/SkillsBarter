@@ -14,6 +14,7 @@ public class ApplicationUser : IdentityUser<Guid>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    public virtual ICollection<UserSkill> UserSkills { get; set; } = new List<UserSkill>();
     public virtual ICollection<Offer> Offers { get; set; } = new List<Offer>();
     public virtual ICollection<RequestThread> InitiatedThreads { get; set; } = new List<RequestThread>();
     public virtual ICollection<RequestThread> ReceivedThreads { get; set; } = new List<RequestThread>();
