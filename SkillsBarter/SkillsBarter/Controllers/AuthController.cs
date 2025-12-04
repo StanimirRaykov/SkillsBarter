@@ -401,6 +401,142 @@ public class AuthController : ControllerBase
         });
     }
 
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return BadRequest(new
+            {
+                success = false,
+                message = "Validation failed",
+                errors
+            });
+        }
+
+        var normalizedEmail = request.Email.ToLowerInvariant().Trim();
+        var user = await _userManager.FindByEmailAsync(normalizedEmail);
+
+        if (user == null)
+        {
+            _logger.LogWarning($"Password reset requested for non-existent email: {normalizedEmail}");
+            return Ok(new
+            {
+                success = true,
+                message = "If an account with that email exists, a password reset link has been sent."
+            });
+        }
+
+        string resetToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
+        user.PasswordResetToken = resetToken;
+        user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            var errors = updateResult.Errors.Select(e => e.Description).ToList();
+            _logger.LogError($"Failed to update password reset token for user {user.Email}: {string.Join(", ", errors)}");
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Failed to process password reset request",
+                errors
+            });
+        }
+
+        try
+        {
+            await _emailService.SendPasswordResetEmailAsync(user.Email!, user.Name, resetToken);
+            _logger.LogInformation($"Password reset email sent to {user.Email}");
+        }
+        catch (Exception emailEx)
+        {
+            _logger.LogError(emailEx, $"Failed to send password reset email to {user.Email}");
+        }
+
+        return Ok(new
+        {
+            success = true,
+            message = "If an account with that email exists, a password reset link has been sent."
+        });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            return BadRequest(new
+            {
+                success = false,
+                message = "Validation failed",
+                errors
+            });
+        }
+
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.PasswordResetToken == request.Token);
+
+        if (user == null)
+        {
+            _logger.LogWarning($"Password reset attempted with invalid token");
+            return BadRequest(new
+            {
+                success = false,
+                message = "Invalid or expired reset token"
+            });
+        }
+
+        if (user.PasswordResetTokenExpiry == null || user.PasswordResetTokenExpiry < DateTime.UtcNow)
+        {
+            _logger.LogWarning($"Password reset attempted with expired token for user {user.Email}");
+            return BadRequest(new
+            {
+                success = false,
+                message = "Invalid or expired reset token"
+            });
+        }
+
+        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+        var result = await _userManager.ResetPasswordAsync(user, resetToken, request.NewPassword);
+
+        if (!result.Succeeded)
+        {
+            var errors = result.Errors.Select(e => e.Description).ToList();
+            _logger.LogError($"Failed to reset password for user {user.Email}: {string.Join(", ", errors)}");
+            return BadRequest(new
+            {
+                success = false,
+                message = "Failed to reset password",
+                errors
+            });
+        }
+
+        user.PasswordResetToken = null;
+        user.PasswordResetTokenExpiry = null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userManager.UpdateAsync(user);
+
+        _logger.LogInformation($"Password reset successfully for user {user.Email}");
+
+        return Ok(new
+        {
+            success = true,
+            message = "Password has been reset successfully. You can now log in with your new password."
+        });
+    }
+
     private async Task<UserDto> MapToUserDto(ApplicationUser user)
     {
         var roles = await _userManager.GetRolesAsync(user);

@@ -41,4 +41,33 @@ public class EmailService : IEmailService
             throw;
         }
     }
+
+    public async Task SendPasswordResetEmailAsync(string toEmail, string userName, string resetToken)
+    {
+        try
+        {
+            var appUrl = _configuration["AppUrl"] ?? "http://localhost:5000";
+            var resetUrl = $"{appUrl}/reset-password?token={resetToken}";
+            var fromEmail = _configuration["Email:FromAddress"] ?? "onboarding@resend.dev";
+
+            var message = new EmailMessage
+            {
+                From = fromEmail,
+                To = new[] { toEmail },
+                Subject = "Reset your SkillsBarter password",
+                TextBody = $@"Hello {userName}, We received a request to reset your password for your SkillsBarter account. Click the link below to reset your password: {resetUrl}
+                This link will expire in 1 hour. If you didn't request a password reset, please ignore this email and your password will remain unchanged.
+                For security reasons, we recommend that you:
+                - Use a strong, unique password"
+            };
+
+            await _resend.EmailSendAsync(message);
+            _logger.LogInformation($"Password reset email sent to {toEmail}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failed to send password reset email to {toEmail}");
+            throw;
+        }
+    }
 }
