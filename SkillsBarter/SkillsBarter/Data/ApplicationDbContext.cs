@@ -105,6 +105,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasColumnName("code")
                 .HasConversion<string>();
             entity.Property(e => e.Label).HasColumnName("label").IsRequired();
+
+            entity.HasData(
+                new OfferStatus { Code = OfferStatusCode.Active, Label = "Active" },
+                new OfferStatus { Code = OfferStatusCode.Cancelled, Label = "Cancelled" },
+                new OfferStatus { Code = OfferStatusCode.UnderAgreement, Label = "Under Agreement" },
+                new OfferStatus { Code = OfferStatusCode.UnderReview, Label = "Under Review" },
+                new OfferStatus { Code = OfferStatusCode.Completed, Label = "Completed" }
+            );
         });
 
         modelBuilder.Entity<Offer>(entity =>
