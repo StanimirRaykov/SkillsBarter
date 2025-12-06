@@ -120,6 +120,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAgreementService, AgreementService>();
 builder.Services.AddScoped<IProposalService, ProposalService>();
+builder.Services.AddScoped<IDeliverableService, DeliverableService>();
 builder.Services.AddScoped<RoleSeeder>();
 
 var resendApiKey = builder.Configuration["Resend:ApiKey"];

@@ -29,6 +29,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<Proposal> Proposals { get; set; }
     public DbSet<ProposalHistory> ProposalHistories { get; set; }
+    public DbSet<Deliverable> Deliverables { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -480,6 +481,40 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.HasIndex(e => e.ProposalId);
             entity.HasIndex(e => new { e.ProposalId, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<Deliverable>(entity =>
+        {
+            entity.ToTable("deliverables");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AgreementId).HasColumnName("agreement_id").IsRequired();
+            entity.Property(e => e.SubmittedById).HasColumnName("submitted_by_id").IsRequired();
+            entity.Property(e => e.Link).HasColumnName("link").IsRequired();
+            entity.Property(e => e.Description).HasColumnName("description").IsRequired();
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .IsRequired()
+                .HasDefaultValue(DeliverableStatus.Submitted);
+            entity.Property(e => e.RevisionReason).HasColumnName("revision_reason");
+            entity.Property(e => e.SubmittedAt).HasColumnName("submitted_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.ApprovedAt).HasColumnName("approved_at");
+            entity.Property(e => e.RevisionCount).HasColumnName("revision_count").HasDefaultValue(0);
+
+            entity.HasOne(e => e.Agreement)
+                .WithMany(a => a.Deliverables)
+                .HasForeignKey(e => e.AgreementId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.SubmittedBy)
+                .WithMany(u => u.Deliverables)
+                .HasForeignKey(e => e.SubmittedById)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.AgreementId);
+            entity.HasIndex(e => e.SubmittedById);
+            entity.HasIndex(e => new { e.AgreementId, e.SubmittedById }).IsUnique();
         });
     }
 }

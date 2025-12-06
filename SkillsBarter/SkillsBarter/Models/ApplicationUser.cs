@@ -32,4 +32,5 @@ public class ApplicationUser : IdentityUser<Guid>
     public virtual ICollection<Proposal> SentProposals { get; set; } = new List<Proposal>();
     public virtual ICollection<Proposal> ReceivedProposals { get; set; } = new List<Proposal>();
     public virtual ICollection<ProposalHistory> ProposalActions { get; set; } = new List<ProposalHistory>();
+    public virtual ICollection<Deliverable> Deliverables { get; set; } = new List<Deliverable>();
 }
