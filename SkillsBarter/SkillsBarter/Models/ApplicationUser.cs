@@ -29,4 +29,7 @@ public class ApplicationUser : IdentityUser<Guid>
     public virtual ICollection<DisputeMessage> DisputeMessages { get; set; } = new List<DisputeMessage>();
     public virtual ICollection<Review> ReviewsGiven { get; set; } = new List<Review>();
     public virtual ICollection<Review> ReviewsReceived { get; set; } = new List<Review>();
+    public virtual ICollection<Proposal> SentProposals { get; set; } = new List<Proposal>();
+    public virtual ICollection<Proposal> ReceivedProposals { get; set; } = new List<Proposal>();
+    public virtual ICollection<ProposalHistory> ProposalActions { get; set; } = new List<ProposalHistory>();
 }

@@ -27,6 +27,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<DisputeMessage> DisputeMessages { get; set; }
     public DbSet<Review> Reviews { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<Proposal> Proposals { get; set; }
+    public DbSet<ProposalHistory> ProposalHistories { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -385,6 +387,99 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.HasIndex(e => e.UserId);
             entity.HasIndex(e => new { e.UserId, e.IsRead, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<Proposal>(entity =>
+        {
+            entity.ToTable("proposals");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.OfferId).HasColumnName("offer_id").IsRequired();
+            entity.Property(e => e.ProposerId).HasColumnName("proposer_id").IsRequired();
+            entity.Property(e => e.OfferOwnerId).HasColumnName("offer_owner_id").IsRequired();
+            entity.Property(e => e.Terms).HasColumnName("terms").IsRequired();
+            entity.Property(e => e.ProposerOffer).HasColumnName("proposer_offer").IsRequired();
+            entity.Property(e => e.Deadline).HasColumnName("deadline").IsRequired();
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .IsRequired()
+                .HasDefaultValue(ProposalStatus.PendingOfferOwnerReview);
+            entity.Property(e => e.PendingResponseFromUserId).HasColumnName("pending_response_from_user_id");
+            entity.Property(e => e.ModificationCount).HasColumnName("modification_count").HasDefaultValue(0);
+            entity.Property(e => e.LastModifiedByUserId).HasColumnName("last_modified_by_user_id");
+            entity.Property(e => e.LastModifiedAt).HasColumnName("last_modified_at");
+            entity.Property(e => e.DeclineReason).HasColumnName("decline_reason");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.AcceptedAt).HasColumnName("accepted_at");
+            entity.Property(e => e.AgreementId).HasColumnName("agreement_id");
+
+            entity.HasOne(e => e.Offer)
+                .WithMany(o => o.Proposals)
+                .HasForeignKey(e => e.OfferId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Proposer)
+                .WithMany(u => u.SentProposals)
+                .HasForeignKey(e => e.ProposerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.OfferOwner)
+                .WithMany(u => u.ReceivedProposals)
+                .HasForeignKey(e => e.OfferOwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.PendingResponseFromUser)
+                .WithMany()
+                .HasForeignKey(e => e.PendingResponseFromUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.LastModifiedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.LastModifiedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Agreement)
+                .WithMany()
+                .HasForeignKey(e => e.AgreementId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.OfferId);
+            entity.HasIndex(e => e.ProposerId);
+            entity.HasIndex(e => e.OfferOwnerId);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.OfferId, e.Status });
+        });
+
+        modelBuilder.Entity<ProposalHistory>(entity =>
+        {
+            entity.ToTable("proposal_histories");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ProposalId).HasColumnName("proposal_id").IsRequired();
+            entity.Property(e => e.ActorId).HasColumnName("actor_id").IsRequired();
+            entity.Property(e => e.Action)
+                .HasColumnName("action")
+                .HasConversion<string>()
+                .IsRequired();
+            entity.Property(e => e.Terms).HasColumnName("terms").IsRequired();
+            entity.Property(e => e.ProposerOffer).HasColumnName("proposer_offer").IsRequired();
+            entity.Property(e => e.Deadline).HasColumnName("deadline").IsRequired();
+            entity.Property(e => e.Message).HasColumnName("message");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(e => e.Proposal)
+                .WithMany(p => p.History)
+                .HasForeignKey(e => e.ProposalId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Actor)
+                .WithMany(u => u.ProposalActions)
+                .HasForeignKey(e => e.ActorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(e => e.ProposalId);
+            entity.HasIndex(e => new { e.ProposalId, e.CreatedAt });
         });
     }
 }
