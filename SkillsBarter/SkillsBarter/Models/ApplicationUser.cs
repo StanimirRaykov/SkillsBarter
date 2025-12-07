@@ -11,6 +11,8 @@ public class ApplicationUser : IdentityUser<Guid>
     public bool IsModerator { get; set; } = false;
     public string? EmailVerificationToken { get; set; }
     public DateTime? EmailVerificationTokenExpiry { get; set; }
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetTokenExpiry { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -24,7 +26,14 @@ public class ApplicationUser : IdentityUser<Guid>
     public virtual ICollection<Payment> TipsSent { get; set; } = new List<Payment>();
     public virtual ICollection<Payment> TipsReceived { get; set; } = new List<Payment>();
     public virtual ICollection<Dispute> OpenedDisputes { get; set; } = new List<Dispute>();
+    public virtual ICollection<Dispute> RespondentDisputes { get; set; } = new List<Dispute>();
+    public virtual ICollection<Dispute> ModeratedDisputes { get; set; } = new List<Dispute>();
     public virtual ICollection<DisputeMessage> DisputeMessages { get; set; } = new List<DisputeMessage>();
+    public virtual ICollection<DisputeEvidence> DisputeEvidence { get; set; } = new List<DisputeEvidence>();
     public virtual ICollection<Review> ReviewsGiven { get; set; } = new List<Review>();
     public virtual ICollection<Review> ReviewsReceived { get; set; } = new List<Review>();
+    public virtual ICollection<Proposal> SentProposals { get; set; } = new List<Proposal>();
+    public virtual ICollection<Proposal> ReceivedProposals { get; set; } = new List<Proposal>();
+    public virtual ICollection<ProposalHistory> ProposalActions { get; set; } = new List<ProposalHistory>();
+    public virtual ICollection<Deliverable> Deliverables { get; set; } = new List<Deliverable>();
 }

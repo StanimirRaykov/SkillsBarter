@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SkillsBarter.Data;
@@ -11,9 +12,11 @@ using SkillsBarter.Data;
 namespace SkillsBarter.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251204211457_AddDefaultValueToOfferStatusCode")]
+    partial class AddDefaultValueToOfferStatusCode
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -326,70 +329,6 @@ namespace SkillsBarter.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("SkillsBarter.Models.Deliverable", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("AgreementId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("agreement_id");
-
-                    b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("approved_at");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Link")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("link");
-
-                    b.Property<int>("RevisionCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("revision_count");
-
-                    b.Property<string>("RevisionReason")
-                        .HasColumnType("text")
-                        .HasColumnName("revision_reason");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Submitted")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("SubmittedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("submitted_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<Guid>("SubmittedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("submitted_by_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AgreementId");
-
-                    b.HasIndex("SubmittedById");
-
-                    b.HasIndex("AgreementId", "SubmittedById")
-                        .IsUnique();
-
-                    b.ToTable("deliverables", (string)null);
-                });
-
             modelBuilder.Entity("SkillsBarter.Models.Dispute", b =>
                 {
                     b.Property<Guid>("Id")
@@ -405,46 +344,11 @@ namespace SkillsBarter.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("closed_at");
 
-                    b.Property<bool>("ComplainerApprovedBeforeDispute")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("complainer_approved_before_dispute");
-
-                    b.Property<bool>("ComplainerDelivered")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("complainer_delivered");
-
-                    b.Property<bool>("ComplainerOnTime")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("complainer_on_time");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<DateTime?>("EscalatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("escalated_at");
-
-                    b.Property<Guid?>("ModeratorId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("moderator_id");
-
-                    b.Property<string>("ModeratorNotes")
-                        .HasColumnType("text")
-                        .HasColumnName("moderator_notes");
 
                     b.Property<Guid>("OpenedById")
                         .HasColumnType("uuid")
@@ -459,117 +363,24 @@ namespace SkillsBarter.Migrations
                         .HasColumnType("text")
                         .HasColumnName("reason_code");
 
-                    b.Property<string>("Resolution")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("None")
-                        .HasColumnName("resolution");
-
                     b.Property<string>("ResolutionSummary")
                         .HasColumnType("text")
                         .HasColumnName("resolution_summary");
 
-                    b.Property<bool>("RespondentApprovedBeforeDispute")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("respondent_approved_before_dispute");
-
-                    b.Property<bool>("RespondentDelivered")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("respondent_delivered");
-
-                    b.Property<Guid>("RespondentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("respondent_id");
-
-                    b.Property<bool>("RespondentOnTime")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("respondent_on_time");
-
-                    b.Property<DateTime>("ResponseDeadline")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("response_deadline");
-
-                    b.Property<DateTime?>("ResponseReceivedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("response_received_at");
-
-                    b.Property<int>("Score")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(50)
-                        .HasColumnName("score");
-
                     b.Property<string>("Status")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasDefaultValue("Open")
                         .HasColumnName("status");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AgreementId");
 
-                    b.HasIndex("ModeratorId");
-
                     b.HasIndex("OpenedById");
 
                     b.HasIndex("PaymentId");
 
-                    b.HasIndex("RespondentId");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("Status", "ResponseDeadline");
-
                     b.ToTable("disputes", (string)null);
-                });
-
-            modelBuilder.Entity("SkillsBarter.Models.DisputeEvidence", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<Guid>("DisputeId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("dispute_id");
-
-                    b.Property<string>("Link")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("link");
-
-                    b.Property<DateTime>("SubmittedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("submitted_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<Guid>("SubmittedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("submitted_by_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DisputeId");
-
-                    b.HasIndex("SubmittedById");
-
-                    b.ToTable("dispute_evidence", (string)null);
                 });
 
             modelBuilder.Entity("SkillsBarter.Models.DisputeMessage", b =>
@@ -870,158 +681,6 @@ namespace SkillsBarter.Migrations
                     b.ToTable("payments", (string)null);
                 });
 
-            modelBuilder.Entity("SkillsBarter.Models.Proposal", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<DateTime?>("AcceptedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("accepted_at");
-
-                    b.Property<Guid?>("AgreementId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("agreement_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("Deadline")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deadline");
-
-                    b.Property<string>("DeclineReason")
-                        .HasColumnType("text")
-                        .HasColumnName("decline_reason");
-
-                    b.Property<DateTime?>("LastModifiedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_modified_at");
-
-                    b.Property<Guid?>("LastModifiedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("last_modified_by_user_id");
-
-                    b.Property<int>("ModificationCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("modification_count");
-
-                    b.Property<Guid>("OfferId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("offer_id");
-
-                    b.Property<Guid>("OfferOwnerId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("offer_owner_id");
-
-                    b.Property<Guid?>("PendingResponseFromUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("pending_response_from_user_id");
-
-                    b.Property<Guid>("ProposerId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("proposer_id");
-
-                    b.Property<string>("ProposerOffer")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("proposer_offer");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("PendingOfferOwnerReview")
-                        .HasColumnName("status");
-
-                    b.Property<string>("Terms")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("terms");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AgreementId");
-
-                    b.HasIndex("LastModifiedByUserId");
-
-                    b.HasIndex("OfferId");
-
-                    b.HasIndex("OfferOwnerId");
-
-                    b.HasIndex("PendingResponseFromUserId");
-
-                    b.HasIndex("ProposerId");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("OfferId", "Status");
-
-                    b.ToTable("proposals", (string)null);
-                });
-
-            modelBuilder.Entity("SkillsBarter.Models.ProposalHistory", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("action");
-
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("actor_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<DateTime>("Deadline")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deadline");
-
-                    b.Property<string>("Message")
-                        .HasColumnType("text")
-                        .HasColumnName("message");
-
-                    b.Property<Guid>("ProposalId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("proposal_id");
-
-                    b.Property<string>("ProposerOffer")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("proposer_offer");
-
-                    b.Property<string>("Terms")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("terms");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActorId");
-
-                    b.HasIndex("ProposalId");
-
-                    b.HasIndex("ProposalId", "CreatedAt");
-
-                    b.ToTable("proposal_histories", (string)null);
-                });
-
             modelBuilder.Entity("SkillsBarter.Models.RequestMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1285,25 +944,6 @@ namespace SkillsBarter.Migrations
                     b.Navigation("Requester");
                 });
 
-            modelBuilder.Entity("SkillsBarter.Models.Deliverable", b =>
-                {
-                    b.HasOne("SkillsBarter.Models.Agreement", "Agreement")
-                        .WithMany("Deliverables")
-                        .HasForeignKey("AgreementId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "SubmittedBy")
-                        .WithMany("Deliverables")
-                        .HasForeignKey("SubmittedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Agreement");
-
-                    b.Navigation("SubmittedBy");
-                });
-
             modelBuilder.Entity("SkillsBarter.Models.Dispute", b =>
                 {
                     b.HasOne("SkillsBarter.Models.Agreement", "Agreement")
@@ -1311,11 +951,6 @@ namespace SkillsBarter.Migrations
                         .HasForeignKey("AgreementId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "Moderator")
-                        .WithMany("ModeratedDisputes")
-                        .HasForeignKey("ModeratorId")
-                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("SkillsBarter.Models.ApplicationUser", "OpenedBy")
                         .WithMany("OpenedDisputes")
@@ -1328,40 +963,11 @@ namespace SkillsBarter.Migrations
                         .HasForeignKey("PaymentId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "Respondent")
-                        .WithMany("RespondentDisputes")
-                        .HasForeignKey("RespondentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Agreement");
-
-                    b.Navigation("Moderator");
 
                     b.Navigation("OpenedBy");
 
                     b.Navigation("Payment");
-
-                    b.Navigation("Respondent");
-                });
-
-            modelBuilder.Entity("SkillsBarter.Models.DisputeEvidence", b =>
-                {
-                    b.HasOne("SkillsBarter.Models.Dispute", "Dispute")
-                        .WithMany("Evidence")
-                        .HasForeignKey("DisputeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "SubmittedBy")
-                        .WithMany("DisputeEvidence")
-                        .HasForeignKey("SubmittedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Dispute");
-
-                    b.Navigation("SubmittedBy");
                 });
 
             modelBuilder.Entity("SkillsBarter.Models.DisputeMessage", b =>
@@ -1464,73 +1070,6 @@ namespace SkillsBarter.Migrations
                     b.Navigation("TipFromUser");
 
                     b.Navigation("TipToUser");
-                });
-
-            modelBuilder.Entity("SkillsBarter.Models.Proposal", b =>
-                {
-                    b.HasOne("SkillsBarter.Models.Agreement", "Agreement")
-                        .WithMany()
-                        .HasForeignKey("AgreementId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "LastModifiedByUser")
-                        .WithMany()
-                        .HasForeignKey("LastModifiedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SkillsBarter.Models.Offer", "Offer")
-                        .WithMany("Proposals")
-                        .HasForeignKey("OfferId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "OfferOwner")
-                        .WithMany("ReceivedProposals")
-                        .HasForeignKey("OfferOwnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "PendingResponseFromUser")
-                        .WithMany()
-                        .HasForeignKey("PendingResponseFromUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "Proposer")
-                        .WithMany("SentProposals")
-                        .HasForeignKey("ProposerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Agreement");
-
-                    b.Navigation("LastModifiedByUser");
-
-                    b.Navigation("Offer");
-
-                    b.Navigation("OfferOwner");
-
-                    b.Navigation("PendingResponseFromUser");
-
-                    b.Navigation("Proposer");
-                });
-
-            modelBuilder.Entity("SkillsBarter.Models.ProposalHistory", b =>
-                {
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "Actor")
-                        .WithMany("ProposalActions")
-                        .HasForeignKey("ActorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("SkillsBarter.Models.Proposal", "Proposal")
-                        .WithMany("History")
-                        .HasForeignKey("ProposalId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Actor");
-
-                    b.Navigation("Proposal");
                 });
 
             modelBuilder.Entity("SkillsBarter.Models.RequestMessage", b =>
@@ -1638,8 +1177,6 @@ namespace SkillsBarter.Migrations
 
             modelBuilder.Entity("SkillsBarter.Models.Agreement", b =>
                 {
-                    b.Navigation("Deliverables");
-
                     b.Navigation("Disputes");
 
                     b.Navigation("Milestones");
@@ -1651,39 +1188,25 @@ namespace SkillsBarter.Migrations
 
             modelBuilder.Entity("SkillsBarter.Models.ApplicationUser", b =>
                 {
-                    b.Navigation("Deliverables");
-
-                    b.Navigation("DisputeEvidence");
-
                     b.Navigation("DisputeMessages");
 
                     b.Navigation("InitiatedThreads");
-
-                    b.Navigation("ModeratedDisputes");
 
                     b.Navigation("Offers");
 
                     b.Navigation("OpenedDisputes");
 
-                    b.Navigation("ProposalActions");
-
                     b.Navigation("ProviderAgreements");
-
-                    b.Navigation("ReceivedProposals");
 
                     b.Navigation("ReceivedThreads");
 
                     b.Navigation("RequesterAgreements");
-
-                    b.Navigation("RespondentDisputes");
 
                     b.Navigation("ReviewsGiven");
 
                     b.Navigation("ReviewsReceived");
 
                     b.Navigation("SentMessages");
-
-                    b.Navigation("SentProposals");
 
                     b.Navigation("TipsReceived");
 
@@ -1694,8 +1217,6 @@ namespace SkillsBarter.Migrations
 
             modelBuilder.Entity("SkillsBarter.Models.Dispute", b =>
                 {
-                    b.Navigation("Evidence");
-
                     b.Navigation("Messages");
                 });
 
@@ -1708,8 +1229,6 @@ namespace SkillsBarter.Migrations
                 {
                     b.Navigation("Agreements");
 
-                    b.Navigation("Proposals");
-
                     b.Navigation("RequestThreads");
                 });
 
@@ -1721,11 +1240,6 @@ namespace SkillsBarter.Migrations
             modelBuilder.Entity("SkillsBarter.Models.Payment", b =>
                 {
                     b.Navigation("Disputes");
-                });
-
-            modelBuilder.Entity("SkillsBarter.Models.Proposal", b =>
-                {
-                    b.Navigation("History");
                 });
 
             modelBuilder.Entity("SkillsBarter.Models.RequestThread", b =>

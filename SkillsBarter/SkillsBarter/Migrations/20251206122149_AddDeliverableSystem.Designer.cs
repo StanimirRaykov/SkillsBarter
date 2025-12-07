@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SkillsBarter.Data;
@@ -11,9 +12,11 @@ using SkillsBarter.Data;
 namespace SkillsBarter.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251206122149_AddDeliverableSystem")]
+    partial class AddDeliverableSystem
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -405,46 +408,11 @@ namespace SkillsBarter.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("closed_at");
 
-                    b.Property<bool>("ComplainerApprovedBeforeDispute")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("complainer_approved_before_dispute");
-
-                    b.Property<bool>("ComplainerDelivered")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("complainer_delivered");
-
-                    b.Property<bool>("ComplainerOnTime")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("complainer_on_time");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<DateTime?>("EscalatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("escalated_at");
-
-                    b.Property<Guid?>("ModeratorId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("moderator_id");
-
-                    b.Property<string>("ModeratorNotes")
-                        .HasColumnType("text")
-                        .HasColumnName("moderator_notes");
 
                     b.Property<Guid>("OpenedById")
                         .HasColumnType("uuid")
@@ -459,117 +427,24 @@ namespace SkillsBarter.Migrations
                         .HasColumnType("text")
                         .HasColumnName("reason_code");
 
-                    b.Property<string>("Resolution")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("None")
-                        .HasColumnName("resolution");
-
                     b.Property<string>("ResolutionSummary")
                         .HasColumnType("text")
                         .HasColumnName("resolution_summary");
 
-                    b.Property<bool>("RespondentApprovedBeforeDispute")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("respondent_approved_before_dispute");
-
-                    b.Property<bool>("RespondentDelivered")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("respondent_delivered");
-
-                    b.Property<Guid>("RespondentId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("respondent_id");
-
-                    b.Property<bool>("RespondentOnTime")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("respondent_on_time");
-
-                    b.Property<DateTime>("ResponseDeadline")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("response_deadline");
-
-                    b.Property<DateTime?>("ResponseReceivedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("response_received_at");
-
-                    b.Property<int>("Score")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(50)
-                        .HasColumnName("score");
-
                     b.Property<string>("Status")
                         .IsRequired()
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasDefaultValue("Open")
                         .HasColumnName("status");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AgreementId");
 
-                    b.HasIndex("ModeratorId");
-
                     b.HasIndex("OpenedById");
 
                     b.HasIndex("PaymentId");
 
-                    b.HasIndex("RespondentId");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("Status", "ResponseDeadline");
-
                     b.ToTable("disputes", (string)null);
-                });
-
-            modelBuilder.Entity("SkillsBarter.Models.DisputeEvidence", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<Guid>("DisputeId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("dispute_id");
-
-                    b.Property<string>("Link")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("link");
-
-                    b.Property<DateTime>("SubmittedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("submitted_at")
-                        .HasDefaultValueSql("CURRENT_TIMESTAMP");
-
-                    b.Property<Guid>("SubmittedById")
-                        .HasColumnType("uuid")
-                        .HasColumnName("submitted_by_id");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DisputeId");
-
-                    b.HasIndex("SubmittedById");
-
-                    b.ToTable("dispute_evidence", (string)null);
                 });
 
             modelBuilder.Entity("SkillsBarter.Models.DisputeMessage", b =>
@@ -1312,11 +1187,6 @@ namespace SkillsBarter.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "Moderator")
-                        .WithMany("ModeratedDisputes")
-                        .HasForeignKey("ModeratorId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("SkillsBarter.Models.ApplicationUser", "OpenedBy")
                         .WithMany("OpenedDisputes")
                         .HasForeignKey("OpenedById")
@@ -1328,40 +1198,11 @@ namespace SkillsBarter.Migrations
                         .HasForeignKey("PaymentId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "Respondent")
-                        .WithMany("RespondentDisputes")
-                        .HasForeignKey("RespondentId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Agreement");
-
-                    b.Navigation("Moderator");
 
                     b.Navigation("OpenedBy");
 
                     b.Navigation("Payment");
-
-                    b.Navigation("Respondent");
-                });
-
-            modelBuilder.Entity("SkillsBarter.Models.DisputeEvidence", b =>
-                {
-                    b.HasOne("SkillsBarter.Models.Dispute", "Dispute")
-                        .WithMany("Evidence")
-                        .HasForeignKey("DisputeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("SkillsBarter.Models.ApplicationUser", "SubmittedBy")
-                        .WithMany("DisputeEvidence")
-                        .HasForeignKey("SubmittedById")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Dispute");
-
-                    b.Navigation("SubmittedBy");
                 });
 
             modelBuilder.Entity("SkillsBarter.Models.DisputeMessage", b =>
@@ -1653,13 +1494,9 @@ namespace SkillsBarter.Migrations
                 {
                     b.Navigation("Deliverables");
 
-                    b.Navigation("DisputeEvidence");
-
                     b.Navigation("DisputeMessages");
 
                     b.Navigation("InitiatedThreads");
-
-                    b.Navigation("ModeratedDisputes");
 
                     b.Navigation("Offers");
 
@@ -1674,8 +1511,6 @@ namespace SkillsBarter.Migrations
                     b.Navigation("ReceivedThreads");
 
                     b.Navigation("RequesterAgreements");
-
-                    b.Navigation("RespondentDisputes");
 
                     b.Navigation("ReviewsGiven");
 
@@ -1694,8 +1529,6 @@ namespace SkillsBarter.Migrations
 
             modelBuilder.Entity("SkillsBarter.Models.Dispute", b =>
                 {
-                    b.Navigation("Evidence");
-
                     b.Navigation("Messages");
                 });
 
