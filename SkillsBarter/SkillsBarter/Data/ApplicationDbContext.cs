@@ -29,6 +29,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<Proposal> Proposals { get; set; }
     public DbSet<ProposalHistory> ProposalHistories { get; set; }
     public DbSet<Deliverable> Deliverables { get; set; }
+    public DbSet<Penalty> Penalties { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -726,6 +727,60 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.HasIndex(e => e.AgreementId);
             entity.HasIndex(e => e.SubmittedById);
             entity.HasIndex(e => new { e.AgreementId, e.SubmittedById }).IsUnique();
+        });
+
+        modelBuilder.Entity<Penalty>(entity =>
+        {
+            entity.ToTable("penalties");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.UserId).HasColumnName("user_id").IsRequired();
+            entity.Property(e => e.AgreementId).HasColumnName("agreement_id").IsRequired();
+            entity.Property(e => e.DisputeId).HasColumnName("dispute_id");
+            entity
+                .Property(e => e.Amount)
+                .HasColumnName("amount")
+                .HasColumnType("numeric")
+                .IsRequired();
+            entity.Property(e => e.Currency).HasColumnName("currency").HasDefaultValue("EUR");
+            entity
+                .Property(e => e.Reason)
+                .HasColumnName("reason")
+                .HasConversion<string>()
+                .IsRequired();
+            entity
+                .Property(e => e.Status)
+                .HasColumnName("status")
+                .HasConversion<string>()
+                .IsRequired()
+                .HasDefaultValue(PenaltyStatus.Pending);
+            entity
+                .Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.ChargedAt).HasColumnName("charged_at");
+
+            entity
+                .HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity
+                .HasOne(e => e.Agreement)
+                .WithMany()
+                .HasForeignKey(e => e.AgreementId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity
+                .HasOne(e => e.Dispute)
+                .WithMany()
+                .HasForeignKey(e => e.DisputeId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.AgreementId);
+            entity.HasIndex(e => e.Status);
         });
     }
 }

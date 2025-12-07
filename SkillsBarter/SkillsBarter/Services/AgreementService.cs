@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SkillsBarter.Constants;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
@@ -16,13 +17,18 @@ public class AgreementService : IAgreementService
         _logger = logger;
     }
 
-    public async Task<AgreementResponse?> CreateAgreementAsync(Guid offerId, Guid requesterId, Guid providerId, string? terms)
+    public async Task<AgreementResponse?> CreateAgreementAsync(
+        Guid offerId,
+        Guid requesterId,
+        Guid providerId,
+        string? terms
+    )
     {
         using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
-            var offer = await _dbContext.Offers
-                .Include(o => o.User)
+            var offer = await _dbContext
+                .Offers.Include(o => o.User)
                 .FirstOrDefaultAsync(o => o.Id == offerId);
 
             if (offer == null)
@@ -33,48 +39,71 @@ public class AgreementService : IAgreementService
 
             if (offer.StatusCode != OfferStatusCode.Active)
             {
-                _logger.LogWarning("Create agreement failed: Offer {OfferId} is not active (Status: {Status})",
-                    offerId, offer.StatusCode);
+                _logger.LogWarning(
+                    "Create agreement failed: Offer {OfferId} is not active (Status: {Status})",
+                    offerId,
+                    offer.StatusCode
+                );
                 return null;
             }
 
             var requester = await _dbContext.Users.FindAsync(requesterId);
             if (requester == null)
             {
-                _logger.LogWarning("Create agreement failed: Requester {RequesterId} not found", requesterId);
+                _logger.LogWarning(
+                    "Create agreement failed: Requester {RequesterId} not found",
+                    requesterId
+                );
                 return null;
             }
 
             var provider = await _dbContext.Users.FindAsync(providerId);
             if (provider == null)
             {
-                _logger.LogWarning("Create agreement failed: Provider {ProviderId} not found", providerId);
+                _logger.LogWarning(
+                    "Create agreement failed: Provider {ProviderId} not found",
+                    providerId
+                );
                 return null;
             }
 
             if (requesterId == providerId)
             {
-                _logger.LogWarning("Create agreement failed: Requester and provider cannot be the same user");
+                _logger.LogWarning(
+                    "Create agreement failed: Requester and provider cannot be the same user"
+                );
                 return null;
             }
 
             if (offer.UserId != requesterId && offer.UserId != providerId)
             {
-                _logger.LogWarning("Create agreement failed: Neither requester {RequesterId} nor provider {ProviderId} owns offer {OfferId} (Owner: {OwnerId})",
-                    requesterId, providerId, offerId, offer.UserId);
+                _logger.LogWarning(
+                    "Create agreement failed: Neither requester {RequesterId} nor provider {ProviderId} owns offer {OfferId} (Owner: {OwnerId})",
+                    requesterId,
+                    providerId,
+                    offerId,
+                    offer.UserId
+                );
                 return null;
             }
 
-            var existingAgreement = await _dbContext.Agreements
-                .Where(a => a.OfferId == offerId &&
-                           (a.Status == AgreementStatus.Pending ||
-                            a.Status == AgreementStatus.InProgress))
+            var existingAgreement = await _dbContext
+                .Agreements.Where(a =>
+                    a.OfferId == offerId
+                    && (
+                        a.Status == AgreementStatus.Pending
+                        || a.Status == AgreementStatus.InProgress
+                    )
+                )
                 .FirstOrDefaultAsync();
 
             if (existingAgreement != null)
             {
-                _logger.LogWarning("Create agreement failed: Offer {OfferId} already has an active agreement {AgreementId}",
-                    offerId, existingAgreement.Id);
+                _logger.LogWarning(
+                    "Create agreement failed: Offer {OfferId} already has an active agreement {AgreementId}",
+                    offerId,
+                    existingAgreement.Id
+                );
                 return null;
             }
 
@@ -86,7 +115,7 @@ public class AgreementService : IAgreementService
                 ProviderId = providerId,
                 Terms = terms,
                 Status = AgreementStatus.InProgress,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
 
             _dbContext.Agreements.Add(agreement);
@@ -98,8 +127,11 @@ public class AgreementService : IAgreementService
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            _logger.LogInformation("Agreement {AgreementId} created for offer {OfferId}. Offer status set to UnderAgreement",
-                agreement.Id, offerId);
+            _logger.LogInformation(
+                "Agreement {AgreementId} created for offer {OfferId}. Offer status set to UnderAgreement",
+                agreement.Id,
+                offerId
+            );
 
             return MapToAgreementResponse(agreement);
         }
@@ -115,26 +147,35 @@ public class AgreementService : IAgreementService
     {
         try
         {
-            var agreement = await _dbContext.Agreements
-                .Include(a => a.Offer)
+            var agreement = await _dbContext
+                .Agreements.Include(a => a.Offer)
                 .FirstOrDefaultAsync(a => a.Id == agreementId);
 
             if (agreement == null)
             {
-                _logger.LogWarning("Complete agreement failed: Agreement {AgreementId} not found", agreementId);
+                _logger.LogWarning(
+                    "Complete agreement failed: Agreement {AgreementId} not found",
+                    agreementId
+                );
                 return null;
             }
 
             if (agreement.RequesterId != userId && agreement.ProviderId != userId)
             {
-                _logger.LogWarning("Complete agreement failed: User {UserId} is not part of agreement {AgreementId}",
-                    userId, agreementId);
+                _logger.LogWarning(
+                    "Complete agreement failed: User {UserId} is not part of agreement {AgreementId}",
+                    userId,
+                    agreementId
+                );
                 return null;
             }
 
             if (agreement.Status == AgreementStatus.Completed)
             {
-                _logger.LogWarning("Complete agreement failed: Agreement {AgreementId} is already completed", agreementId);
+                _logger.LogWarning(
+                    "Complete agreement failed: Agreement {AgreementId} is already completed",
+                    agreementId
+                );
                 return null;
             }
 
@@ -151,8 +192,12 @@ public class AgreementService : IAgreementService
 
             await _dbContext.SaveChangesAsync();
 
-            _logger.LogInformation("Agreement {AgreementId} completed by user {UserId}. Offer {OfferId} status set to Completed",
-                agreementId, userId, agreement.OfferId);
+            _logger.LogInformation(
+                "Agreement {AgreementId} completed by user {UserId}. Offer {OfferId} status set to Completed",
+                agreementId,
+                userId,
+                agreement.OfferId
+            );
 
             return MapToAgreementResponse(agreement);
         }
@@ -167,8 +212,9 @@ public class AgreementService : IAgreementService
     {
         try
         {
-            var agreement = await _dbContext.Agreements
-                .FirstOrDefaultAsync(a => a.Id == agreementId);
+            var agreement = await _dbContext.Agreements.FirstOrDefaultAsync(a =>
+                a.Id == agreementId
+            );
 
             if (agreement == null)
             {
@@ -189,8 +235,8 @@ public class AgreementService : IAgreementService
     {
         try
         {
-            var agreement = await _dbContext.Agreements
-                .Include(a => a.Requester)
+            var agreement = await _dbContext
+                .Agreements.Include(a => a.Requester)
                 .Include(a => a.Provider)
                 .Include(a => a.Offer)
                     .ThenInclude(o => o.Skill)
@@ -229,7 +275,7 @@ public class AgreementService : IAgreementService
             Status = agreement.Status,
             CreatedAt = agreement.CreatedAt,
             AcceptedAt = agreement.AcceptedAt,
-            CompletedAt = agreement.CompletedAt
+            CompletedAt = agreement.CompletedAt,
         };
     }
 
@@ -252,7 +298,7 @@ public class AgreementService : IAgreementService
                 Name = agreement.Requester.Name,
                 Email = agreement.Requester.Email ?? string.Empty,
                 VerificationLevel = agreement.Requester.VerificationLevel,
-                ReputationScore = agreement.Requester.ReputationScore
+                ReputationScore = agreement.Requester.ReputationScore,
             },
             Provider = new AgreementUserInfo
             {
@@ -260,7 +306,7 @@ public class AgreementService : IAgreementService
                 Name = agreement.Provider.Name,
                 Email = agreement.Provider.Email ?? string.Empty,
                 VerificationLevel = agreement.Provider.VerificationLevel,
-                ReputationScore = agreement.Provider.ReputationScore
+                ReputationScore = agreement.Provider.ReputationScore,
             },
             Offer = new AgreementOfferInfo
             {
@@ -268,39 +314,97 @@ public class AgreementService : IAgreementService
                 Title = agreement.Offer.Title,
                 Description = agreement.Offer.Description,
                 SkillName = agreement.Offer.Skill.Name,
-                StatusCode = agreement.Offer.StatusCode.ToString()
+                StatusCode = agreement.Offer.StatusCode.ToString(),
             },
-            Milestones = agreement.Milestones.Select(m => new MilestoneInfo
-            {
-                Id = m.Id,
-                Title = m.Title,
-                Amount = m.Amount,
-                Status = m.Status,
-                DueAt = m.DueAt
-            }).ToList(),
-            Payments = agreement.Payments.Select(p => new PaymentInfo
-            {
-                Id = p.Id,
-                MilestoneId = p.MilestoneId,
-                TipFromUserId = p.TipFromUserId,
-                TipToUserId = p.TipToUserId,
-                Amount = p.Amount,
-                Currency = p.Currency,
-                PaymentType = p.PaymentType,
-                Status = p.Status,
-                CreatedAt = p.CreatedAt
-            }).ToList(),
-            Reviews = agreement.Reviews.Select(r => new ReviewInfo
-            {
-                Id = r.Id,
-                ReviewerId = r.ReviewerId,
-                ReviewerName = r.Reviewer.Name,
-                RecipientId = r.RecipientId,
-                RecipientName = r.Recipient.Name,
-                Rating = r.Rating,
-                Body = r.Body,
-                CreatedAt = r.CreatedAt
-            }).ToList()
+            Milestones = agreement
+                .Milestones.Select(m => new MilestoneInfo
+                {
+                    Id = m.Id,
+                    Title = m.Title,
+                    Amount = m.Amount,
+                    Status = m.Status,
+                    DueAt = m.DueAt,
+                })
+                .ToList(),
+            Payments = agreement
+                .Payments.Select(p => new PaymentInfo
+                {
+                    Id = p.Id,
+                    MilestoneId = p.MilestoneId,
+                    TipFromUserId = p.TipFromUserId,
+                    TipToUserId = p.TipToUserId,
+                    Amount = p.Amount,
+                    Currency = p.Currency,
+                    PaymentType = p.PaymentType,
+                    Status = p.Status,
+                    CreatedAt = p.CreatedAt,
+                })
+                .ToList(),
+            Reviews = agreement
+                .Reviews.Select(r => new ReviewInfo
+                {
+                    Id = r.Id,
+                    ReviewerId = r.ReviewerId,
+                    ReviewerName = r.Reviewer.Name,
+                    RecipientId = r.RecipientId,
+                    RecipientName = r.Recipient.Name,
+                    Rating = r.Rating,
+                    Body = r.Body,
+                    CreatedAt = r.CreatedAt,
+                })
+                .ToList(),
         };
     }
+
+    public async Task ProcessAbandonedAgreementsAsync()
+    {
+        var abandonmentThreshold = DateTime.UtcNow.AddDays(-PenaltyConstants.AbandonmentDays);
+
+        var abandonedAgreements = await _dbContext
+            .Agreements.Include(a => a.Deliverables)
+            .Where(a =>
+                a.Status == AgreementStatus.InProgress
+                && a.CreatedAt < abandonmentThreshold
+                && !a.Deliverables.Any()
+            )
+            .ToListAsync();
+
+        foreach (var agreement in abandonedAgreements)
+        {
+            CreatePenaltiesForAbandonedAgreement(agreement);
+            agreement.Status = AgreementStatus.Cancelled;
+
+            _logger.LogInformation(
+                "Agreement {AgreementId} marked as abandoned. Penalties created for both parties.",
+                agreement.Id
+            );
+        }
+
+        if (abandonedAgreements.Count > 0)
+            await _dbContext.SaveChangesAsync();
+    }
+
+    private void CreatePenaltiesForAbandonedAgreement(Agreement agreement)
+    {
+        var penalties = new[]
+        {
+            CreatePenalty(agreement.RequesterId, agreement.Id),
+            CreatePenalty(agreement.ProviderId, agreement.Id),
+        };
+
+        _dbContext.Penalties.AddRange(penalties);
+    }
+
+    private static Penalty CreatePenalty(Guid userId, Guid agreementId) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AgreementId = agreementId,
+            Amount = PenaltyConstants.FullPenaltyAmount,
+            Currency = PenaltyConstants.DefaultCurrency,
+            Reason = PenaltyReason.AgreementAbandoned,
+            Status = PenaltyStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+        };
 }

@@ -14,33 +14,43 @@ public class ProposalService : IProposalService
     public ProposalService(
         ApplicationDbContext dbContext,
         IAgreementService agreementService,
-        ILogger<ProposalService> logger)
+        ILogger<ProposalService> logger
+    )
     {
         _dbContext = dbContext;
         _agreementService = agreementService;
         _logger = logger;
     }
 
-    public async Task<ProposalResponse?> CreateProposalAsync(CreateProposalRequest request, Guid proposerId)
+    public async Task<ProposalResponse?> CreateProposalAsync(
+        CreateProposalRequest request,
+        Guid proposerId
+    )
     {
         using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
             // Validate offer exists and is active
-            var offer = await _dbContext.Offers
-                .Include(o => o.User)
+            var offer = await _dbContext
+                .Offers.Include(o => o.User)
                 .FirstOrDefaultAsync(o => o.Id == request.OfferId);
 
             if (offer == null)
             {
-                _logger.LogWarning("Create proposal failed: Offer {OfferId} not found", request.OfferId);
+                _logger.LogWarning(
+                    "Create proposal failed: Offer {OfferId} not found",
+                    request.OfferId
+                );
                 return null;
             }
 
             if (offer.StatusCode != OfferStatusCode.Active)
             {
-                _logger.LogWarning("Create proposal failed: Offer {OfferId} is not active (Status: {Status})",
-                    request.OfferId, offer.StatusCode);
+                _logger.LogWarning(
+                    "Create proposal failed: Offer {OfferId} is not active (Status: {Status})",
+                    request.OfferId,
+                    offer.StatusCode
+                );
                 return null;
             }
 
@@ -48,34 +58,47 @@ public class ProposalService : IProposalService
             var proposer = await _dbContext.Users.FindAsync(proposerId);
             if (proposer == null)
             {
-                _logger.LogWarning("Create proposal failed: Proposer {ProposerId} not found", proposerId);
+                _logger.LogWarning(
+                    "Create proposal failed: Proposer {ProposerId} not found",
+                    proposerId
+                );
                 return null;
             }
 
             if (offer.UserId == proposerId)
             {
-                _logger.LogWarning("Create proposal failed: User {UserId} cannot propose on their own offer", proposerId);
+                _logger.LogWarning(
+                    "Create proposal failed: User {UserId} cannot propose on their own offer",
+                    proposerId
+                );
                 return null;
             }
 
-            // Validate deadline is in the future
             if (request.Deadline <= DateTime.UtcNow)
             {
                 _logger.LogWarning("Create proposal failed: Deadline must be in the future");
                 return null;
             }
 
-            var existingProposal = await _dbContext.Proposals
-                .Where(p => p.OfferId == request.OfferId &&
-                           p.ProposerId == proposerId &&
-                           (p.Status == ProposalStatus.PendingOfferOwnerReview ||
-                            p.Status == ProposalStatus.PendingOfferOwnerReview))
+            var existingProposal = await _dbContext
+                .Proposals.Where(p =>
+                    p.OfferId == request.OfferId
+                    && p.ProposerId == proposerId
+                    && (
+                        p.Status == ProposalStatus.PendingOfferOwnerReview
+                        || p.Status == ProposalStatus.PendingOfferOwnerReview
+                    )
+                )
                 .FirstOrDefaultAsync();
 
             if (existingProposal != null)
             {
-                _logger.LogWarning("Create proposal failed: User {UserId} already has a pending proposal {ProposalId} for offer {OfferId}",
-                    proposerId, existingProposal.Id, request.OfferId);
+                _logger.LogWarning(
+                    "Create proposal failed: User {UserId} already has a pending proposal {ProposalId} for offer {OfferId}",
+                    proposerId,
+                    existingProposal.Id,
+                    request.OfferId
+                );
                 return null;
             }
 
@@ -91,7 +114,7 @@ public class ProposalService : IProposalService
                 Status = ProposalStatus.PendingOfferOwnerReview,
                 PendingResponseFromUserId = offer.UserId,
                 ModificationCount = 0,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
 
             _dbContext.Proposals.Add(proposal);
@@ -106,7 +129,7 @@ public class ProposalService : IProposalService
                 ProposerOffer = request.ProposerOffer,
                 Deadline = request.Deadline,
                 Message = request.Message,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
 
             _dbContext.ProposalHistories.Add(historyEntry);
@@ -114,8 +137,12 @@ public class ProposalService : IProposalService
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            _logger.LogInformation("Proposal {ProposalId} created by user {ProposerId} for offer {OfferId}",
-                proposal.Id, proposerId, request.OfferId);
+            _logger.LogInformation(
+                "Proposal {ProposalId} created by user {ProposerId} for offer {OfferId}",
+                proposal.Id,
+                proposerId,
+                request.OfferId
+            );
 
             return await MapToProposalResponseAsync(proposal);
         }
@@ -127,45 +154,60 @@ public class ProposalService : IProposalService
         }
     }
 
-    public async Task<ProposalResponse?> RespondToProposalAsync(Guid proposalId, RespondToProposalRequest request, Guid responderId)
+    public async Task<ProposalResponse?> RespondToProposalAsync(
+        Guid proposalId,
+        RespondToProposalRequest request,
+        Guid responderId
+    )
     {
         using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
-            var proposal = await _dbContext.Proposals
-                .Include(p => p.Offer)
+            var proposal = await _dbContext
+                .Proposals.Include(p => p.Offer)
                 .Include(p => p.Proposer)
                 .Include(p => p.OfferOwner)
                 .FirstOrDefaultAsync(p => p.Id == proposalId);
 
             if (proposal == null)
             {
-                _logger.LogWarning("Respond to proposal failed: Proposal {ProposalId} not found", proposalId);
+                _logger.LogWarning(
+                    "Respond to proposal failed: Proposal {ProposalId} not found",
+                    proposalId
+                );
                 return null;
             }
 
-            // Validate responder is part of the proposal
             if (proposal.ProposerId != responderId && proposal.OfferOwnerId != responderId)
             {
-                _logger.LogWarning("Respond to proposal failed: User {UserId} is not part of proposal {ProposalId}",
-                    responderId, proposalId);
+                _logger.LogWarning(
+                    "Respond to proposal failed: User {UserId} is not part of proposal {ProposalId}",
+                    responderId,
+                    proposalId
+                );
                 return null;
             }
 
-            // Validate it's the responder's turn
             if (proposal.PendingResponseFromUserId != responderId)
             {
-                _logger.LogWarning("Respond to proposal failed: Not user {UserId}'s turn to respond to proposal {ProposalId}",
-                    responderId, proposalId);
+                _logger.LogWarning(
+                    "Respond to proposal failed: Not user {UserId}'s turn to respond to proposal {ProposalId}",
+                    responderId,
+                    proposalId
+                );
                 return null;
             }
 
-            // Validate proposal is in a respondable state
-            if (proposal.Status != ProposalStatus.PendingOfferOwnerReview &&
-                proposal.Status != ProposalStatus.PendingOfferOwnerReview)
+            if (
+                proposal.Status != ProposalStatus.PendingOfferOwnerReview
+                && proposal.Status != ProposalStatus.PendingOfferOwnerReview
+            )
             {
-                _logger.LogWarning("Respond to proposal failed: Proposal {ProposalId} is not pending response (Status: {Status})",
-                    proposalId, proposal.Status);
+                _logger.LogWarning(
+                    "Respond to proposal failed: Proposal {ProposalId} is not pending response (Status: {Status})",
+                    proposalId,
+                    proposal.Status
+                );
                 return null;
             }
 
@@ -176,9 +218,14 @@ public class ProposalService : IProposalService
                     break;
 
                 case ProposalResponseAction.Modify:
-                    if (string.IsNullOrWhiteSpace(request.Terms) || string.IsNullOrWhiteSpace(request.ProposerOffer))
+                    if (
+                        string.IsNullOrWhiteSpace(request.Terms)
+                        || string.IsNullOrWhiteSpace(request.ProposerOffer)
+                    )
                     {
-                        _logger.LogWarning("Respond to proposal failed: Terms and ProposerOffer are required for modification");
+                        _logger.LogWarning(
+                            "Respond to proposal failed: Terms and ProposerOffer are required for modification"
+                        );
                         return null;
                     }
                     HandleModify(proposal, responderId, request);
@@ -189,7 +236,6 @@ public class ProposalService : IProposalService
                     break;
             }
 
-            // Create history entry
             var historyEntry = new ProposalHistory
             {
                 Id = Guid.NewGuid(),
@@ -200,13 +246,13 @@ public class ProposalService : IProposalService
                     ProposalResponseAction.Accept => ProposalAction.Accepted,
                     ProposalResponseAction.Modify => ProposalAction.Modified,
                     ProposalResponseAction.Decline => ProposalAction.Declined,
-                    _ => throw new ArgumentOutOfRangeException()
+                    _ => throw new ArgumentOutOfRangeException(),
                 },
                 Terms = proposal.Terms,
                 ProposerOffer = proposal.ProposerOffer,
                 Deadline = proposal.Deadline,
                 Message = request.Message,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
 
             _dbContext.ProposalHistories.Add(historyEntry);
@@ -215,8 +261,12 @@ public class ProposalService : IProposalService
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            _logger.LogInformation("Proposal {ProposalId} responded to by user {UserId} with action {Action}",
-                proposalId, responderId, request.Action);
+            _logger.LogInformation(
+                "Proposal {ProposalId} responded to by user {UserId} with action {Action}",
+                proposalId,
+                responderId,
+                request.Action
+            );
 
             return await MapToProposalResponseAsync(proposal);
         }
@@ -236,26 +286,33 @@ public class ProposalService : IProposalService
 
         var agreementResult = await _agreementService.CreateAgreementAsync(
             proposal.OfferId,
-            proposal.ProposerId,  
-            proposal.OfferOwnerId, 
-            proposal.Terms);
+            proposal.ProposerId,
+            proposal.OfferOwnerId,
+            proposal.Terms
+        );
 
         if (agreementResult != null)
         {
             proposal.AgreementId = agreementResult.Id;
-            _logger.LogInformation("Agreement {AgreementId} created from accepted proposal {ProposalId}",
-                agreementResult.Id, proposal.Id);
+            _logger.LogInformation(
+                "Agreement {AgreementId} created from accepted proposal {ProposalId}",
+                agreementResult.Id,
+                proposal.Id
+            );
         }
         else
         {
-            _logger.LogWarning("Failed to create agreement from proposal {ProposalId}", proposal.Id);
+            _logger.LogWarning(
+                "Failed to create agreement from proposal {ProposalId}",
+                proposal.Id
+            );
         }
     }
 
     private void HandleModify(Proposal proposal, Guid responderId, RespondToProposalRequest request)
     {
-        proposal.Terms = request.Terms!;
-        proposal.ProposerOffer = request.ProposerOffer!;
+        proposal.Terms = request.Terms ?? proposal.Terms;
+        proposal.ProposerOffer = request.ProposerOffer ?? proposal.ProposerOffer;
 
         if (request.Deadline.HasValue && request.Deadline.Value > DateTime.UtcNow)
         {
@@ -266,10 +323,8 @@ public class ProposalService : IProposalService
         proposal.LastModifiedByUserId = responderId;
         proposal.LastModifiedAt = DateTime.UtcNow;
 
-        // Switch whose turn it is - the other party needs to respond
-        proposal.PendingResponseFromUserId = responderId == proposal.OfferOwnerId
-            ? proposal.ProposerId
-            : proposal.OfferOwnerId;
+        proposal.PendingResponseFromUserId =
+            responderId == proposal.OfferOwnerId ? proposal.ProposerId : proposal.OfferOwnerId;
     }
 
     private void HandleDecline(Proposal proposal, Guid responderId, string? message)
@@ -288,22 +343,33 @@ public class ProposalService : IProposalService
 
             if (proposal == null)
             {
-                _logger.LogWarning("Withdraw proposal failed: Proposal {ProposalId} not found", proposalId);
+                _logger.LogWarning(
+                    "Withdraw proposal failed: Proposal {ProposalId} not found",
+                    proposalId
+                );
                 return false;
             }
 
             if (proposal.ProposerId != userId)
             {
-                _logger.LogWarning("Withdraw proposal failed: User {UserId} is not the proposer of proposal {ProposalId}",
-                    userId, proposalId);
+                _logger.LogWarning(
+                    "Withdraw proposal failed: User {UserId} is not the proposer of proposal {ProposalId}",
+                    userId,
+                    proposalId
+                );
                 return false;
             }
 
-            if (proposal.Status != ProposalStatus.PendingOfferOwnerReview &&
-                proposal.Status != ProposalStatus.PendingOfferOwnerReview)
+            if (
+                proposal.Status != ProposalStatus.PendingOfferOwnerReview
+                && proposal.Status != ProposalStatus.PendingOfferOwnerReview
+            )
             {
-                _logger.LogWarning("Withdraw proposal failed: Proposal {ProposalId} is not in a withdrawable state (Status: {Status})",
-                    proposalId, proposal.Status);
+                _logger.LogWarning(
+                    "Withdraw proposal failed: Proposal {ProposalId} is not in a withdrawable state (Status: {Status})",
+                    proposalId,
+                    proposal.Status
+                );
                 return false;
             }
 
@@ -319,7 +385,7 @@ public class ProposalService : IProposalService
                 Terms = proposal.Terms,
                 ProposerOffer = proposal.ProposerOffer,
                 Deadline = proposal.Deadline,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
 
             _dbContext.ProposalHistories.Add(historyEntry);
@@ -328,7 +394,11 @@ public class ProposalService : IProposalService
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
-            _logger.LogInformation("Proposal {ProposalId} withdrawn by user {UserId}", proposalId, userId);
+            _logger.LogInformation(
+                "Proposal {ProposalId} withdrawn by user {UserId}",
+                proposalId,
+                userId
+            );
             return true;
         }
         catch (Exception ex)
@@ -341,8 +411,8 @@ public class ProposalService : IProposalService
 
     public async Task<ProposalResponse?> GetProposalByIdAsync(Guid proposalId)
     {
-        var proposal = await _dbContext.Proposals
-            .Include(p => p.Offer)
+        var proposal = await _dbContext
+            .Proposals.Include(p => p.Offer)
             .Include(p => p.Proposer)
             .Include(p => p.OfferOwner)
             .FirstOrDefaultAsync(p => p.Id == proposalId);
@@ -357,8 +427,8 @@ public class ProposalService : IProposalService
 
     public async Task<ProposalDetailResponse?> GetProposalDetailByIdAsync(Guid proposalId)
     {
-        var proposal = await _dbContext.Proposals
-            .Include(p => p.Offer)
+        var proposal = await _dbContext
+            .Proposals.Include(p => p.Offer)
                 .ThenInclude(o => o.Skill)
             .Include(p => p.Proposer)
             .Include(p => p.OfferOwner)
@@ -374,19 +444,22 @@ public class ProposalService : IProposalService
         return MapToProposalDetailResponse(proposal);
     }
 
-    public async Task<ProposalListResponse> GetUserProposalsAsync(Guid userId, GetProposalsRequest request)
+    public async Task<ProposalListResponse> GetUserProposalsAsync(
+        Guid userId,
+        GetProposalsRequest request
+    )
     {
-        var query = _dbContext.Proposals
-            .Include(p => p.Offer)
+        var query = _dbContext
+            .Proposals.Include(p => p.Offer)
             .Include(p => p.Proposer)
             .Include(p => p.OfferOwner)
             .AsQueryable();
 
-        if (request.AsSender == true && request.AsReceiver != true)
+        if (request.AsSender is true && request.AsReceiver is not true)
         {
             query = query.Where(p => p.ProposerId == userId);
         }
-        else if (request.AsReceiver == true && request.AsSender != true)
+        else if (request.AsReceiver is true && request.AsSender is not true)
         {
             query = query.Where(p => p.OfferOwnerId == userId);
         }
@@ -425,14 +498,17 @@ public class ProposalService : IProposalService
             TotalCount = totalCount,
             Page = request.Page,
             PageSize = request.PageSize,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize)
+            TotalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize),
         };
     }
 
-    public async Task<ProposalListResponse> GetOfferProposalsAsync(Guid offerId, GetProposalsRequest request)
+    public async Task<ProposalListResponse> GetOfferProposalsAsync(
+        Guid offerId,
+        GetProposalsRequest request
+    )
     {
-        var query = _dbContext.Proposals
-            .Include(p => p.Offer)
+        var query = _dbContext
+            .Proposals.Include(p => p.Offer)
             .Include(p => p.Proposer)
             .Include(p => p.OfferOwner)
             .Where(p => p.OfferId == offerId);
@@ -462,7 +538,7 @@ public class ProposalService : IProposalService
             TotalCount = totalCount,
             Page = request.Page,
             PageSize = request.PageSize,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize)
+            TotalPages = (int)Math.Ceiling(totalCount / (double)request.PageSize),
         };
     }
 
@@ -475,17 +551,23 @@ public class ProposalService : IProposalService
             return false;
         }
 
-        return proposal.PendingResponseFromUserId == userId &&
-               (proposal.Status == ProposalStatus.PendingOfferOwnerReview ||
-                proposal.Status == ProposalStatus.PendingOfferOwnerReview);
+        return proposal.PendingResponseFromUserId == userId
+            && (
+                proposal.Status == ProposalStatus.PendingOfferOwnerReview
+                || proposal.Status == ProposalStatus.PendingOfferOwnerReview
+            );
     }
 
     public async Task<int> MarkExpiredProposalsAsync()
     {
-        var expiredProposals = await _dbContext.Proposals
-            .Where(p => p.Deadline < DateTime.UtcNow &&
-                       (p.Status == ProposalStatus.PendingOfferOwnerReview ||
-                        p.Status == ProposalStatus.PendingOfferOwnerReview))
+        var expiredProposals = await _dbContext
+            .Proposals.Where(p =>
+                p.Deadline < DateTime.UtcNow
+                && (
+                    p.Status == ProposalStatus.PendingOfferOwnerReview
+                    || p.Status == ProposalStatus.PendingOfferOwnerReview
+                )
+            )
             .ToListAsync();
 
         foreach (var proposal in expiredProposals)
@@ -503,7 +585,7 @@ public class ProposalService : IProposalService
                 ProposerOffer = proposal.ProposerOffer,
                 Deadline = proposal.Deadline,
                 Message = "Proposal expired due to deadline",
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
             };
 
             _dbContext.ProposalHistories.Add(historyEntry);
@@ -550,7 +632,7 @@ public class ProposalService : IProposalService
             ModificationCount = proposal.ModificationCount,
             CreatedAt = proposal.CreatedAt,
             AcceptedAt = proposal.AcceptedAt,
-            AgreementId = proposal.AgreementId
+            AgreementId = proposal.AgreementId,
         };
     }
 
@@ -579,24 +661,24 @@ public class ProposalService : IProposalService
                 Id = proposal.Proposer?.Id ?? Guid.Empty,
                 Name = proposal.Proposer?.Name ?? string.Empty,
                 VerificationLevel = proposal.Proposer?.VerificationLevel ?? 0,
-                ReputationScore = proposal.Proposer?.ReputationScore ?? 0
+                ReputationScore = proposal.Proposer?.ReputationScore ?? 0,
             },
             OfferOwner = new ProposalUserInfo
             {
                 Id = proposal.OfferOwner?.Id ?? Guid.Empty,
                 Name = proposal.OfferOwner?.Name ?? string.Empty,
                 VerificationLevel = proposal.OfferOwner?.VerificationLevel ?? 0,
-                ReputationScore = proposal.OfferOwner?.ReputationScore ?? 0
+                ReputationScore = proposal.OfferOwner?.ReputationScore ?? 0,
             },
             Offer = new ProposalOfferInfo
             {
                 Id = proposal.Offer?.Id ?? Guid.Empty,
                 Title = proposal.Offer?.Title ?? string.Empty,
                 Description = proposal.Offer?.Description,
-                SkillName = proposal.Offer?.Skill?.Name ?? string.Empty
+                SkillName = proposal.Offer?.Skill?.Name ?? string.Empty,
             },
-            History = proposal.History
-                .OrderBy(h => h.CreatedAt)
+            History = proposal
+                .History.OrderBy(h => h.CreatedAt)
                 .Select(h => new ProposalHistoryInfo
                 {
                     Id = h.Id,
@@ -607,8 +689,9 @@ public class ProposalService : IProposalService
                     ProposerOffer = h.ProposerOffer,
                     Deadline = h.Deadline,
                     Message = h.Message,
-                    CreatedAt = h.CreatedAt
-                }).ToList()
+                    CreatedAt = h.CreatedAt,
+                })
+                .ToList(),
         };
     }
 }

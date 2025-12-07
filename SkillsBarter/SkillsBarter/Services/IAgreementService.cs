@@ -8,4 +8,5 @@ public interface IAgreementService
     Task<AgreementResponse?> CompleteAgreementAsync(Guid agreementId, Guid userId);
     Task<AgreementResponse?> GetAgreementByIdAsync(Guid agreementId);
     Task<AgreementDetailResponse?> GetAgreementDetailByIdAsync(Guid agreementId);
+    Task ProcessAbandonedAgreementsAsync();
 }

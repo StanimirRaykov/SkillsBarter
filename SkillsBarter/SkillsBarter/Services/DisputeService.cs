@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SkillsBarter.Constants;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
@@ -303,6 +304,21 @@ public class DisputeService : IDisputeService
         dispute.ClosedAt = DateTime.UtcNow;
         dispute.ResolutionSummary = $"Moderator decision: {request.Resolution}. {request.Notes}";
 
+        if (request.Resolution == DisputeResolution.FavorsComplainer)
+        {
+            var reason = dispute.Score >= 40 && dispute.Score <= 60
+                ? PenaltyReason.DisputeLostHalfPenalty
+                : PenaltyReason.DisputeLostFullPenalty;
+            CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, reason);
+        }
+        else if (request.Resolution == DisputeResolution.FavorsRespondent)
+        {
+            var reason = dispute.Score >= 40 && dispute.Score <= 60
+                ? PenaltyReason.DisputeLostHalfPenalty
+                : PenaltyReason.DisputeLostFullPenalty;
+            CreatePenalty(dispute.OpenedById, dispute.AgreementId, dispute.Id, reason);
+        }
+
         await ApplyResolutionToAgreement(dispute);
         await _dbContext.SaveChangesAsync();
 
@@ -327,6 +343,8 @@ public class DisputeService : IDisputeService
             dispute.ClosedAt = DateTime.UtcNow;
             dispute.ResolutionSummary = "Auto-resolved: Respondent failed to respond within 72 hours.";
 
+            CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, PenaltyReason.NoDisputeResponse);
+
             await ApplyResolutionToAgreement(dispute);
 
             _logger.LogInformation("Dispute {DisputeId} auto-resolved due to no response", dispute.Id);
@@ -345,14 +363,14 @@ public class DisputeService : IDisputeService
         var complainerDeliverable = agreement.Deliverables.FirstOrDefault(d => d.SubmittedById == complainerId);
         var respondentDeliverable = agreement.Deliverables.FirstOrDefault(d => d.SubmittedById == respondentId);
 
-        bool complainerDelivered = complainerDeliverable != null;
-        bool respondentDelivered = respondentDeliverable != null;
+        var complainerDelivered = complainerDeliverable is not null;
+        var respondentDelivered = respondentDeliverable is not null;
 
-        bool complainerOnTime = complainerDeliverable != null && complainerDeliverable.SubmittedAt <= deadline;
-        bool respondentOnTime = respondentDeliverable != null && respondentDeliverable.SubmittedAt <= deadline;
+        var complainerOnTime = complainerDeliverable is not null && complainerDeliverable.SubmittedAt <= deadline;
+        var respondentOnTime = respondentDeliverable is not null && respondentDeliverable.SubmittedAt <= deadline;
 
-        bool complainerApproved = complainerDeliverable?.Status == DeliverableStatus.Approved;
-        bool respondentApproved = respondentDeliverable?.Status == DeliverableStatus.Approved;
+        var complainerApproved = complainerDeliverable?.Status == DeliverableStatus.Approved;
+        var respondentApproved = respondentDeliverable?.Status == DeliverableStatus.Approved;
 
         int score = 50;
 
@@ -389,6 +407,8 @@ public class DisputeService : IDisputeService
             dispute.Resolution = DisputeResolution.FavorsRespondent;
             dispute.ClosedAt = DateTime.UtcNow;
             dispute.ResolutionSummary = "Auto-resolved: Score indicates respondent fulfilled obligations (score >= 70).";
+
+            CreatePenalty(dispute.OpenedById, dispute.AgreementId, dispute.Id, PenaltyReason.DisputeLostFullPenalty);
         }
         else if (dispute.Score < 40)
         {
@@ -396,6 +416,8 @@ public class DisputeService : IDisputeService
             dispute.Resolution = DisputeResolution.FavorsComplainer;
             dispute.ClosedAt = DateTime.UtcNow;
             dispute.ResolutionSummary = "Auto-resolved: Score indicates complainer's grievance is valid (score < 40).";
+
+            CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, PenaltyReason.DisputeLostFullPenalty);
         }
         else
         {
@@ -537,5 +559,29 @@ public class DisputeService : IDisputeService
             >= 40 => "Evidence is inconclusive, requires moderator review",
             _ => "Strong evidence favors the complainer"
         };
+    }
+
+    private void CreatePenalty(Guid userId, Guid agreementId, Guid disputeId, PenaltyReason reason)
+    {
+        var amount = reason == PenaltyReason.DisputeLostHalfPenalty
+            ? PenaltyConstants.HalfPenaltyAmount
+            : PenaltyConstants.FullPenaltyAmount;
+
+        var penalty = new Penalty
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AgreementId = agreementId,
+            DisputeId = disputeId,
+            Amount = amount,
+            Currency = PenaltyConstants.DefaultCurrency,
+            Reason = reason,
+            Status = PenaltyStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Penalties.Add(penalty);
+        _logger.LogInformation("Penalty created for user {UserId} on agreement {AgreementId}: {Amount} {Currency} for {Reason}",
+            userId, agreementId, amount, PenaltyConstants.DefaultCurrency, reason);
     }
 }
