@@ -19,7 +19,8 @@ public class AgreementsController : ControllerBase
     public AgreementsController(
         IAgreementService agreementService,
         UserManager<ApplicationUser> userManager,
-        ILogger<AgreementsController> logger)
+        ILogger<AgreementsController> logger
+    )
     {
         _agreementService = agreementService;
         _userManager = userManager;
@@ -34,7 +35,13 @@ public class AgreementsController : ControllerBase
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(new { message = "Invalid request", errors = ModelState.Values.SelectMany(v => v.Errors) });
+                return BadRequest(
+                    new
+                    {
+                        message = "Invalid request",
+                        errors = ModelState.Values.SelectMany(v => v.Errors),
+                    }
+                );
             }
 
             var currentUser = await _userManager.GetUserAsync(User);
@@ -45,8 +52,12 @@ public class AgreementsController : ControllerBase
 
             if (currentUser.Id != request.RequesterId && currentUser.Id != request.ProviderId)
             {
-                _logger.LogWarning("User {UserId} attempted to create agreement but is not one of the parties (Requester: {RequesterId}, Provider: {ProviderId})",
-                    currentUser.Id, request.RequesterId, request.ProviderId);
+                _logger.LogWarning(
+                    "User {UserId} attempted to create agreement but is not one of the parties (Requester: {RequesterId}, Provider: {ProviderId})",
+                    currentUser.Id,
+                    request.RequesterId,
+                    request.ProviderId
+                );
                 return Forbid();
             }
 
@@ -54,11 +65,17 @@ public class AgreementsController : ControllerBase
                 request.OfferId,
                 request.RequesterId,
                 request.ProviderId,
-                request.Terms);
+                request.Terms
+            );
 
             if (agreement == null)
             {
-                return BadRequest(new { message = "Failed to create agreement. Ensure the offer is active, you are authorized (one party must be the offer owner), no active agreement exists, and all users are valid." });
+                return BadRequest(
+                    new
+                    {
+                        message = "Failed to create agreement. Ensure the offer is active, you are authorized (one party must be the offer owner), no active agreement exists, and all users are valid.",
+                    }
+                );
             }
 
             _logger.LogInformation("Agreement {AgreementId} created successfully", agreement.Id);
@@ -67,7 +84,10 @@ public class AgreementsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating agreement");
-            return StatusCode(500, new { message = "An error occurred while creating the agreement" });
+            return StatusCode(
+                500,
+                new { message = "An error occurred while creating the agreement" }
+            );
         }
     }
 
@@ -94,12 +114,17 @@ public class AgreementsController : ControllerBase
                 return NotFound(new { message = "Agreement not found" });
             }
 
-            if (agreementDetail.RequesterId != currentUser.Id &&
-                agreementDetail.ProviderId != currentUser.Id &&
-                !currentUser.IsModerator)
+            if (
+                agreementDetail.RequesterId != currentUser.Id
+                && agreementDetail.ProviderId != currentUser.Id
+                && !currentUser.IsModerator
+            )
             {
-                _logger.LogWarning("User {UserId} attempted to access agreement {AgreementId} without authorization",
-                    currentUser.Id, id);
+                _logger.LogWarning(
+                    "User {UserId} attempted to access agreement {AgreementId} without authorization",
+                    currentUser.Id,
+                    id
+                );
                 return Forbid();
             }
 
@@ -108,7 +133,10 @@ public class AgreementsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving agreement {AgreementId}", id);
-            return StatusCode(500, new { message = "An error occurred while retrieving the agreement" });
+            return StatusCode(
+                500,
+                new { message = "An error occurred while retrieving the agreement" }
+            );
         }
     }
 
@@ -132,21 +160,35 @@ public class AgreementsController : ControllerBase
             var agreement = await _agreementService.CompleteAgreementAsync(id, currentUser.Id);
             if (agreement == null)
             {
-                return BadRequest(new { message = "Failed to complete agreement. You may not be authorized or the agreement may already be completed." });
+                return BadRequest(
+                    new
+                    {
+                        message = "Failed to complete agreement. You may not be authorized or the agreement may already be completed.",
+                    }
+                );
             }
 
-            _logger.LogInformation("Agreement {AgreementId} completed successfully by user {UserId}", id, currentUser.Id);
-            return Ok(new
-            {
-                success = true,
-                message = "Agreement completed successfully. Offer status updated to Completed.",
-                agreement
-            });
+            _logger.LogInformation(
+                "Agreement {AgreementId} completed successfully by user {UserId}",
+                id,
+                currentUser.Id
+            );
+            return Ok(
+                new
+                {
+                    success = true,
+                    message = "Agreement completed successfully. Offer status updated to Completed.",
+                    agreement,
+                }
+            );
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error completing agreement {AgreementId}", id);
-            return StatusCode(500, new { message = "An error occurred while completing the agreement" });
+            return StatusCode(
+                500,
+                new { message = "An error occurred while completing the agreement" }
+            );
         }
     }
 }

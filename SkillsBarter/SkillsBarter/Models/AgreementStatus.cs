@@ -5,5 +5,6 @@ public enum AgreementStatus
     Pending,
     InProgress,
     Completed,
-    Cancelled
+    Cancelled,
+    Disputed
 }
