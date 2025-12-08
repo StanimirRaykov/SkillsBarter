@@ -576,12 +576,13 @@ public class DisputeService : IDisputeService
             Amount = amount,
             Currency = PenaltyConstants.DefaultCurrency,
             Reason = reason,
-            Status = PenaltyStatus.Pending,
-            CreatedAt = DateTime.UtcNow
+            Status = PenaltyStatus.Charged,
+            CreatedAt = DateTime.UtcNow,
+            ChargedAt = DateTime.UtcNow
         };
 
         _dbContext.Penalties.Add(penalty);
-        _logger.LogInformation("Penalty created for user {UserId} on agreement {AgreementId}: {Amount} {Currency} for {Reason}",
+        _logger.LogInformation("Penalty charged for user {UserId} on agreement {AgreementId}: {Amount} {Currency} for {Reason}",
             userId, agreementId, amount, PenaltyConstants.DefaultCurrency, reason);
     }
 }

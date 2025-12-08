@@ -404,7 +404,8 @@ public class AgreementService : IAgreementService
             Amount = PenaltyConstants.FullPenaltyAmount,
             Currency = PenaltyConstants.DefaultCurrency,
             Reason = PenaltyReason.AgreementAbandoned,
-            Status = PenaltyStatus.Pending,
+            Status = PenaltyStatus.Charged,
             CreatedAt = DateTime.UtcNow,
+            ChargedAt = DateTime.UtcNow,
         };
 }
