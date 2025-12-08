@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SkillsBarter.Constants;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
@@ -9,16 +10,19 @@ public class ProposalService : IProposalService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly IAgreementService _agreementService;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<ProposalService> _logger;
 
     public ProposalService(
         ApplicationDbContext dbContext,
         IAgreementService agreementService,
+        INotificationService notificationService,
         ILogger<ProposalService> logger
     )
     {
         _dbContext = dbContext;
         _agreementService = agreementService;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -142,6 +146,13 @@ public class ProposalService : IProposalService
                 proposal.Id,
                 proposerId,
                 request.OfferId
+            );
+
+            await _notificationService.CreateAsync(
+                offer.UserId,
+                NotificationType.ProposalReceived,
+                "New Proposal Received",
+                $"You received a new proposal for your offer '{offer.Title}'"
             );
 
             return await MapToProposalResponseAsync(proposal);
@@ -268,6 +279,32 @@ public class ProposalService : IProposalService
                 request.Action
             );
 
+            var recipientId = responderId == proposal.ProposerId ? proposal.OfferOwnerId : proposal.ProposerId;
+            var (notifType, title, message) = request.Action switch
+            {
+                ProposalResponseAction.Accept => (
+                    NotificationType.ProposalAccepted,
+                    "Proposal Accepted",
+                    $"Your proposal for '{proposal.Offer.Title}' has been accepted"
+                ),
+                ProposalResponseAction.Modify => (
+                    NotificationType.ProposalModified,
+                    "Proposal Modified",
+                    $"The terms for proposal on '{proposal.Offer.Title}' have been modified"
+                ),
+                ProposalResponseAction.Decline => (
+                    NotificationType.ProposalDeclined,
+                    "Proposal Declined",
+                    $"Your proposal for '{proposal.Offer.Title}' has been declined"
+                ),
+                _ => (string.Empty, string.Empty, string.Empty)
+            };
+
+            if (!string.IsNullOrEmpty(notifType))
+            {
+                await _notificationService.CreateAsync(recipientId, notifType, title, message);
+            }
+
             return await MapToProposalResponseAsync(proposal);
         }
         catch (Exception ex)
@@ -339,7 +376,9 @@ public class ProposalService : IProposalService
         using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
-            var proposal = await _dbContext.Proposals.FindAsync(proposalId);
+            var proposal = await _dbContext.Proposals
+                .Include(p => p.Offer)
+                .FirstOrDefaultAsync(p => p.Id == proposalId);
 
             if (proposal == null)
             {
@@ -399,6 +438,14 @@ public class ProposalService : IProposalService
                 proposalId,
                 userId
             );
+
+            await _notificationService.CreateAsync(
+                proposal.OfferOwnerId,
+                NotificationType.ProposalWithdrawn,
+                "Proposal Withdrawn",
+                $"A proposal for your offer '{proposal.Offer.Title}' has been withdrawn"
+            );
+
             return true;
         }
         catch (Exception ex)

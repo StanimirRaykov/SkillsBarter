@@ -9,12 +9,17 @@ namespace SkillsBarter.Services;
 public class DisputeService : IDisputeService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<DisputeService> _logger;
     private const int ResponseDeadlineHours = 72;
 
-    public DisputeService(ApplicationDbContext dbContext, ILogger<DisputeService> logger)
+    public DisputeService(
+        ApplicationDbContext dbContext,
+        INotificationService notificationService,
+        ILogger<DisputeService> logger)
     {
         _dbContext = dbContext;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -113,6 +118,13 @@ public class DisputeService : IDisputeService
             _logger.LogInformation("Dispute {DisputeId} opened by {UserId} for agreement {AgreementId} with score {Score}",
                 dispute.Id, userId, request.AgreementId, dispute.Score);
 
+            await _notificationService.CreateAsync(
+                respondentId,
+                NotificationType.DisputeOpened,
+                "Dispute Opened",
+                $"A dispute has been opened against you. Respond within 72 hours."
+            );
+
             return await MapToResponseAsync(dispute, userId);
         }
         catch (Exception ex)
@@ -182,6 +194,33 @@ public class DisputeService : IDisputeService
             await transaction.CommitAsync();
 
             _logger.LogInformation("Dispute {DisputeId} responded to by {UserId}", disputeId, userId);
+
+            await _notificationService.CreateAsync(
+                dispute.OpenedById,
+                NotificationType.DisputeResponse,
+                "Dispute Response Received",
+                "The respondent has replied to your dispute"
+            );
+
+            if (dispute.Status == DisputeStatus.EscalatedToModerator)
+            {
+                await _notificationService.CreateAsync(
+                    dispute.OpenedById,
+                    NotificationType.DisputeEscalated,
+                    "Dispute Escalated",
+                    "Your dispute has been escalated to a moderator for review"
+                );
+                await _notificationService.CreateAsync(
+                    dispute.RespondentId,
+                    NotificationType.DisputeEscalated,
+                    "Dispute Escalated",
+                    "The dispute has been escalated to a moderator for review"
+                );
+            }
+            else if (dispute.Status == DisputeStatus.Resolved)
+            {
+                await NotifyDisputeResolutionAsync(dispute);
+            }
 
             return await MapToResponseAsync(dispute, userId);
         }
@@ -325,6 +364,8 @@ public class DisputeService : IDisputeService
         _logger.LogInformation("Dispute {DisputeId} resolved by moderator {ModeratorId} with {Resolution}",
             disputeId, moderatorId, request.Resolution);
 
+        await NotifyDisputeResolutionAsync(dispute);
+
         return await MapToResponseAsync(dispute, moderatorId);
     }
 
@@ -348,6 +389,8 @@ public class DisputeService : IDisputeService
             await ApplyResolutionToAgreement(dispute);
 
             _logger.LogInformation("Dispute {DisputeId} auto-resolved due to no response", dispute.Id);
+
+            await NotifyDisputeResolutionAsync(dispute);
         }
 
         if (expiredDisputes.Count > 0)
@@ -584,5 +627,43 @@ public class DisputeService : IDisputeService
         _dbContext.Penalties.Add(penalty);
         _logger.LogInformation("Penalty charged for user {UserId} on agreement {AgreementId}: {Amount} {Currency} for {Reason}",
             userId, agreementId, amount, PenaltyConstants.DefaultCurrency, reason);
+
+        _notificationService.CreateAsync(
+            userId,
+            NotificationType.PenaltyCharged,
+            "Penalty Charged",
+            $"A penalty of {amount} {PenaltyConstants.DefaultCurrency} has been charged"
+        ).GetAwaiter().GetResult();
+    }
+
+    private async Task NotifyDisputeResolutionAsync(Dispute dispute)
+    {
+        var resolutionText = dispute.Resolution switch
+        {
+            DisputeResolution.FavorsComplainer => "in your favor",
+            DisputeResolution.FavorsRespondent => "in favor of the other party",
+            _ => "with a split decision"
+        };
+
+        await _notificationService.CreateAsync(
+            dispute.OpenedById,
+            NotificationType.DisputeResolved,
+            "Dispute Resolved",
+            $"Your dispute has been resolved {resolutionText}"
+        );
+
+        var respondentText = dispute.Resolution switch
+        {
+            DisputeResolution.FavorsComplainer => "in favor of the other party",
+            DisputeResolution.FavorsRespondent => "in your favor",
+            _ => "with a split decision"
+        };
+
+        await _notificationService.CreateAsync(
+            dispute.RespondentId,
+            NotificationType.DisputeResolved,
+            "Dispute Resolved",
+            $"The dispute has been resolved {respondentText}"
+        );
     }
 }

@@ -9,11 +9,16 @@ namespace SkillsBarter.Services;
 public class AgreementService : IAgreementService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<AgreementService> _logger;
 
-    public AgreementService(ApplicationDbContext dbContext, ILogger<AgreementService> logger)
+    public AgreementService(
+        ApplicationDbContext dbContext,
+        INotificationService notificationService,
+        ILogger<AgreementService> logger)
     {
         _dbContext = dbContext;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -133,6 +138,19 @@ public class AgreementService : IAgreementService
                 offerId
             );
 
+            await _notificationService.CreateAsync(
+                requesterId,
+                NotificationType.AgreementCreated,
+                "Agreement Created",
+                $"An agreement has been created for '{offer.Title}'"
+            );
+            await _notificationService.CreateAsync(
+                providerId,
+                NotificationType.AgreementCreated,
+                "Agreement Created",
+                $"An agreement has been created for '{offer.Title}'"
+            );
+
             return MapToAgreementResponse(agreement);
         }
         catch (Exception ex)
@@ -197,6 +215,14 @@ public class AgreementService : IAgreementService
                 agreementId,
                 userId,
                 agreement.OfferId
+            );
+
+            var otherPartyId = userId == agreement.RequesterId ? agreement.ProviderId : agreement.RequesterId;
+            await _notificationService.CreateAsync(
+                otherPartyId,
+                NotificationType.AgreementCompleted,
+                "Agreement Completed",
+                "Your agreement has been marked as completed"
             );
 
             return MapToAgreementResponse(agreement);

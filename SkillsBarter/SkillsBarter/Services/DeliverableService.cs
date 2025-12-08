@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SkillsBarter.Constants;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
@@ -8,11 +9,16 @@ namespace SkillsBarter.Services;
 public class DeliverableService : IDeliverableService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<DeliverableService> _logger;
 
-    public DeliverableService(ApplicationDbContext dbContext, ILogger<DeliverableService> logger)
+    public DeliverableService(
+        ApplicationDbContext dbContext,
+        INotificationService notificationService,
+        ILogger<DeliverableService> logger)
     {
         _dbContext = dbContext;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -87,6 +93,14 @@ public class DeliverableService : IDeliverableService
             request.AgreementId
         );
 
+        var recipientId = userId == agreement.RequesterId ? agreement.ProviderId : agreement.RequesterId;
+        await _notificationService.CreateAsync(
+            recipientId,
+            NotificationType.DeliverableSubmitted,
+            "Deliverable Submitted",
+            "A deliverable has been submitted for your agreement"
+        );
+
         return await MapToResponseAsync(deliverable, userId);
     }
 
@@ -135,6 +149,13 @@ public class DeliverableService : IDeliverableService
             "Deliverable {DeliverableId} approved by user {UserId}",
             deliverableId,
             userId
+        );
+
+        await _notificationService.CreateAsync(
+            deliverable.SubmittedById,
+            NotificationType.DeliverableApproved,
+            "Deliverable Approved",
+            "Your deliverable has been approved"
         );
 
         return await MapToResponseAsync(deliverable, userId);
@@ -191,6 +212,13 @@ public class DeliverableService : IDeliverableService
             userId
         );
 
+        await _notificationService.CreateAsync(
+            deliverable.SubmittedById,
+            NotificationType.RevisionRequested,
+            "Revision Requested",
+            $"A revision has been requested: {request.Reason}"
+        );
+
         return await MapToResponseAsync(deliverable, userId);
     }
 
@@ -245,6 +273,16 @@ public class DeliverableService : IDeliverableService
             "Deliverable {DeliverableId} resubmitted by user {UserId}",
             deliverableId,
             userId
+        );
+
+        var recipientId = userId == deliverable.Agreement.RequesterId
+            ? deliverable.Agreement.ProviderId
+            : deliverable.Agreement.RequesterId;
+        await _notificationService.CreateAsync(
+            recipientId,
+            NotificationType.DeliverableSubmitted,
+            "Deliverable Resubmitted",
+            "A revised deliverable has been submitted for your agreement"
         );
 
         return await MapToResponseAsync(deliverable, userId);

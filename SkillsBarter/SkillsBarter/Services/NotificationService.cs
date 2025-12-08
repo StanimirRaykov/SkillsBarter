@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs.Notifications;
+using SkillsBarter.Models;
 
 namespace SkillsBarter.Services;
 
@@ -13,6 +14,23 @@ public class NotificationService : INotificationService
     {
         _dbContext = dbContext;
         _logger = logger;
+    }
+
+    public async Task CreateAsync(Guid userId, string type, string title, string message)
+    {
+        var notification = new Notification
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            Type = type,
+            Title = title,
+            Message = message,
+            IsRead = false,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        _dbContext.Notifications.Add(notification);
+        await _dbContext.SaveChangesAsync();
     }
 
     public async Task<NotificationsListResponseDto> GetNotificationsAsync(Guid userId, bool unreadOnly, int skip, int take)
