@@ -12,6 +12,8 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddDataProtection();
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -27,7 +29,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
 
     options.User.RequireUniqueEmail = true;
 
-    options.SignIn.RequireConfirmedEmail = false;
+    options.SignIn.RequireConfirmedEmail = true;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddDefaultTokenProviders();
@@ -56,6 +58,20 @@ if (!string.IsNullOrEmpty(secretKey))
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     })
     .AddGoogle(options =>
     {
@@ -65,6 +81,9 @@ if (!string.IsNullOrEmpty(secretKey))
         {
             options.ClientId = googleClientId;
             options.ClientSecret = googleClientSecret;
+            options.CallbackPath = "/signin-google";
+            options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+            options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         }
     })
     .AddFacebook(options =>
@@ -75,6 +94,9 @@ if (!string.IsNullOrEmpty(secretKey))
         {
             options.AppId = facebookAppId;
             options.AppSecret = facebookAppSecret;
+            options.CallbackPath = "/signin-facebook";
+            options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+            options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         }
         else
         {
@@ -94,6 +116,9 @@ else
             {
                 options.ClientId = googleClientId;
                 options.ClientSecret = googleClientSecret;
+                options.CallbackPath = "/signin-google";
+                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             }
         })
         .AddFacebook(options =>
@@ -104,6 +129,9 @@ else
             {
                 options.AppId = facebookAppId;
                 options.AppSecret = facebookAppSecret;
+                options.CallbackPath = "/signin-facebook";
+                options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+                options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             }
             else
             {
@@ -152,16 +180,24 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "https://localhost:3000") 
+        policy.WithOrigins("http://localhost:3000", "https://localhost:3000", "http://localhost:5000")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
     });
 });
 
+builder.Services.Configure<CookiePolicyOptions>(options =>
+{
+    options.MinimumSameSitePolicy = SameSiteMode.Lax;
+    options.Secure = CookieSecurePolicy.SameAsRequest;
+});
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -176,8 +212,12 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    app.UseHttpsRedirection();
+}
 
-app.UseHttpsRedirection();
+app.UseCookiePolicy();
 
 app.UseCors("AllowFrontend");
 
@@ -187,5 +227,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<SkillsBarter.Hubs.NotificationHub>("/hubs/notifications");
 
 app.Run();

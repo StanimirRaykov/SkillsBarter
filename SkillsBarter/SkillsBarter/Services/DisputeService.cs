@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SkillsBarter.Constants;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
@@ -8,12 +9,17 @@ namespace SkillsBarter.Services;
 public class DisputeService : IDisputeService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<DisputeService> _logger;
     private const int ResponseDeadlineHours = 72;
 
-    public DisputeService(ApplicationDbContext dbContext, ILogger<DisputeService> logger)
+    public DisputeService(
+        ApplicationDbContext dbContext,
+        INotificationService notificationService,
+        ILogger<DisputeService> logger)
     {
         _dbContext = dbContext;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -112,6 +118,13 @@ public class DisputeService : IDisputeService
             _logger.LogInformation("Dispute {DisputeId} opened by {UserId} for agreement {AgreementId} with score {Score}",
                 dispute.Id, userId, request.AgreementId, dispute.Score);
 
+            await _notificationService.CreateAsync(
+                respondentId,
+                NotificationType.DisputeOpened,
+                "Dispute Opened",
+                $"A dispute has been opened against you. Respond within 72 hours."
+            );
+
             return await MapToResponseAsync(dispute, userId);
         }
         catch (Exception ex)
@@ -181,6 +194,33 @@ public class DisputeService : IDisputeService
             await transaction.CommitAsync();
 
             _logger.LogInformation("Dispute {DisputeId} responded to by {UserId}", disputeId, userId);
+
+            await _notificationService.CreateAsync(
+                dispute.OpenedById,
+                NotificationType.DisputeResponse,
+                "Dispute Response Received",
+                "The respondent has replied to your dispute"
+            );
+
+            if (dispute.Status == DisputeStatus.EscalatedToModerator)
+            {
+                await _notificationService.CreateAsync(
+                    dispute.OpenedById,
+                    NotificationType.DisputeEscalated,
+                    "Dispute Escalated",
+                    "Your dispute has been escalated to a moderator for review"
+                );
+                await _notificationService.CreateAsync(
+                    dispute.RespondentId,
+                    NotificationType.DisputeEscalated,
+                    "Dispute Escalated",
+                    "The dispute has been escalated to a moderator for review"
+                );
+            }
+            else if (dispute.Status == DisputeStatus.Resolved)
+            {
+                await NotifyDisputeResolutionAsync(dispute);
+            }
 
             return await MapToResponseAsync(dispute, userId);
         }
@@ -303,11 +343,28 @@ public class DisputeService : IDisputeService
         dispute.ClosedAt = DateTime.UtcNow;
         dispute.ResolutionSummary = $"Moderator decision: {request.Resolution}. {request.Notes}";
 
+        if (request.Resolution == DisputeResolution.FavorsComplainer)
+        {
+            var reason = dispute.Score >= 40 && dispute.Score <= 60
+                ? PenaltyReason.DisputeLostHalfPenalty
+                : PenaltyReason.DisputeLostFullPenalty;
+            CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, reason);
+        }
+        else if (request.Resolution == DisputeResolution.FavorsRespondent)
+        {
+            var reason = dispute.Score >= 40 && dispute.Score <= 60
+                ? PenaltyReason.DisputeLostHalfPenalty
+                : PenaltyReason.DisputeLostFullPenalty;
+            CreatePenalty(dispute.OpenedById, dispute.AgreementId, dispute.Id, reason);
+        }
+
         await ApplyResolutionToAgreement(dispute);
         await _dbContext.SaveChangesAsync();
 
         _logger.LogInformation("Dispute {DisputeId} resolved by moderator {ModeratorId} with {Resolution}",
             disputeId, moderatorId, request.Resolution);
+
+        await NotifyDisputeResolutionAsync(dispute);
 
         return await MapToResponseAsync(dispute, moderatorId);
     }
@@ -327,9 +384,13 @@ public class DisputeService : IDisputeService
             dispute.ClosedAt = DateTime.UtcNow;
             dispute.ResolutionSummary = "Auto-resolved: Respondent failed to respond within 72 hours.";
 
+            CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, PenaltyReason.NoDisputeResponse);
+
             await ApplyResolutionToAgreement(dispute);
 
             _logger.LogInformation("Dispute {DisputeId} auto-resolved due to no response", dispute.Id);
+
+            await NotifyDisputeResolutionAsync(dispute);
         }
 
         if (expiredDisputes.Count > 0)
@@ -345,14 +406,14 @@ public class DisputeService : IDisputeService
         var complainerDeliverable = agreement.Deliverables.FirstOrDefault(d => d.SubmittedById == complainerId);
         var respondentDeliverable = agreement.Deliverables.FirstOrDefault(d => d.SubmittedById == respondentId);
 
-        bool complainerDelivered = complainerDeliverable != null;
-        bool respondentDelivered = respondentDeliverable != null;
+        var complainerDelivered = complainerDeliverable is not null;
+        var respondentDelivered = respondentDeliverable is not null;
 
-        bool complainerOnTime = complainerDeliverable != null && complainerDeliverable.SubmittedAt <= deadline;
-        bool respondentOnTime = respondentDeliverable != null && respondentDeliverable.SubmittedAt <= deadline;
+        var complainerOnTime = complainerDeliverable is not null && complainerDeliverable.SubmittedAt <= deadline;
+        var respondentOnTime = respondentDeliverable is not null && respondentDeliverable.SubmittedAt <= deadline;
 
-        bool complainerApproved = complainerDeliverable?.Status == DeliverableStatus.Approved;
-        bool respondentApproved = respondentDeliverable?.Status == DeliverableStatus.Approved;
+        var complainerApproved = complainerDeliverable?.Status == DeliverableStatus.Approved;
+        var respondentApproved = respondentDeliverable?.Status == DeliverableStatus.Approved;
 
         int score = 50;
 
@@ -389,6 +450,8 @@ public class DisputeService : IDisputeService
             dispute.Resolution = DisputeResolution.FavorsRespondent;
             dispute.ClosedAt = DateTime.UtcNow;
             dispute.ResolutionSummary = "Auto-resolved: Score indicates respondent fulfilled obligations (score >= 70).";
+
+            CreatePenalty(dispute.OpenedById, dispute.AgreementId, dispute.Id, PenaltyReason.DisputeLostFullPenalty);
         }
         else if (dispute.Score < 40)
         {
@@ -396,6 +459,8 @@ public class DisputeService : IDisputeService
             dispute.Resolution = DisputeResolution.FavorsComplainer;
             dispute.ClosedAt = DateTime.UtcNow;
             dispute.ResolutionSummary = "Auto-resolved: Score indicates complainer's grievance is valid (score < 40).";
+
+            CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, PenaltyReason.DisputeLostFullPenalty);
         }
         else
         {
@@ -537,5 +602,68 @@ public class DisputeService : IDisputeService
             >= 40 => "Evidence is inconclusive, requires moderator review",
             _ => "Strong evidence favors the complainer"
         };
+    }
+
+    private void CreatePenalty(Guid userId, Guid agreementId, Guid disputeId, PenaltyReason reason)
+    {
+        var amount = reason == PenaltyReason.DisputeLostHalfPenalty
+            ? PenaltyConstants.HalfPenaltyAmount
+            : PenaltyConstants.FullPenaltyAmount;
+
+        var penalty = new Penalty
+        {
+            Id = Guid.NewGuid(),
+            UserId = userId,
+            AgreementId = agreementId,
+            DisputeId = disputeId,
+            Amount = amount,
+            Currency = PenaltyConstants.DefaultCurrency,
+            Reason = reason,
+            Status = PenaltyStatus.Charged,
+            CreatedAt = DateTime.UtcNow,
+            ChargedAt = DateTime.UtcNow
+        };
+
+        _dbContext.Penalties.Add(penalty);
+        _logger.LogInformation("Penalty charged for user {UserId} on agreement {AgreementId}: {Amount} {Currency} for {Reason}",
+            userId, agreementId, amount, PenaltyConstants.DefaultCurrency, reason);
+
+        _notificationService.CreateAsync(
+            userId,
+            NotificationType.PenaltyCharged,
+            "Penalty Charged",
+            $"A penalty of {amount} {PenaltyConstants.DefaultCurrency} has been charged"
+        ).GetAwaiter().GetResult();
+    }
+
+    private async Task NotifyDisputeResolutionAsync(Dispute dispute)
+    {
+        var resolutionText = dispute.Resolution switch
+        {
+            DisputeResolution.FavorsComplainer => "in your favor",
+            DisputeResolution.FavorsRespondent => "in favor of the other party",
+            _ => "with a split decision"
+        };
+
+        await _notificationService.CreateAsync(
+            dispute.OpenedById,
+            NotificationType.DisputeResolved,
+            "Dispute Resolved",
+            $"Your dispute has been resolved {resolutionText}"
+        );
+
+        var respondentText = dispute.Resolution switch
+        {
+            DisputeResolution.FavorsComplainer => "in favor of the other party",
+            DisputeResolution.FavorsRespondent => "in your favor",
+            _ => "with a split decision"
+        };
+
+        await _notificationService.CreateAsync(
+            dispute.RespondentId,
+            NotificationType.DisputeResolved,
+            "Dispute Resolved",
+            $"The dispute has been resolved {respondentText}"
+        );
     }
 }

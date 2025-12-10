@@ -1,5 +1,5 @@
-using AspNetCoreRateLimit;
 using System.Security.Claims;
+using AspNetCoreRateLimit;
 
 namespace SkillsBarter.Configuration;
 
