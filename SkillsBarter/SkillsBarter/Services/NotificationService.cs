@@ -1,6 +1,8 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs.Notifications;
+using SkillsBarter.Hubs;
 using SkillsBarter.Models;
 
 namespace SkillsBarter.Services;
@@ -9,11 +11,16 @@ public class NotificationService : INotificationService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<NotificationService> _logger;
+    private readonly IHubContext<NotificationHub> _hubContext;
 
-    public NotificationService(ApplicationDbContext dbContext, ILogger<NotificationService> logger)
+    public NotificationService(
+        ApplicationDbContext dbContext,
+        ILogger<NotificationService> logger,
+        IHubContext<NotificationHub> hubContext)
     {
         _dbContext = dbContext;
         _logger = logger;
+        _hubContext = hubContext;
     }
 
     public async Task CreateAsync(Guid userId, string type, string title, string message)
@@ -31,6 +38,28 @@ public class NotificationService : INotificationService
 
         _dbContext.Notifications.Add(notification);
         await _dbContext.SaveChangesAsync();
+
+        try
+        {
+            var notificationDto = new NotificationDto
+            {
+                Id = notification.Id,
+                Title = notification.Title,
+                Message = notification.Message,
+                Type = notification.Type,
+                CreatedAt = notification.CreatedAt
+            };
+
+            await _hubContext.Clients
+                .Group($"user_{userId}")
+                .SendAsync("ReceiveNotification", notificationDto);
+
+            _logger.LogInformation("Real-time notification sent to user {UserId} via SignalR", userId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send real-time notification to user {UserId}", userId);
+        }
     }
 
     public async Task<NotificationsListResponseDto> GetNotificationsAsync(Guid userId, bool unreadOnly, int skip, int take)

@@ -25,6 +25,7 @@ public class AuthController : ControllerBase
     private readonly IEmailService _emailService;
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<AuthController> _logger;
+    private readonly IConfiguration _configuration;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
@@ -33,7 +34,8 @@ public class AuthController : ControllerBase
         IUserService userService,
         IEmailService emailService,
         ApplicationDbContext dbContext,
-        ILogger<AuthController> logger)
+        ILogger<AuthController> logger,
+        IConfiguration configuration)
     {
         _userManager = userManager;
         _signInManager = signInManager;
@@ -42,6 +44,7 @@ public class AuthController : ControllerBase
         _emailService = emailService;
         _dbContext = dbContext;
         _logger = logger;
+        _configuration = configuration;
     }
 
     [HttpGet("login-google")]
@@ -69,8 +72,12 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> GoogleCallback()
     {
         var result = await HttpContext.AuthenticateAsync(GoogleDefaults.AuthenticationScheme);
-        if (!result.Succeeded) 
-            return BadRequest(new { error = "Google authentication failed" });
+        if (!result.Succeeded)
+        {
+            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
+            var errorMessage = Uri.EscapeDataString("Google authentication failed");
+            return Redirect($"{frontendUrl}/oauth-callback?success=false&error={errorMessage}");
+        }
 
         return await HandleExternalLogin(result);
     }
@@ -80,20 +87,29 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> FacebookCallback()
     {
         var result = await HttpContext.AuthenticateAsync(FacebookDefaults.AuthenticationScheme);
-        if (!result.Succeeded) 
-            return BadRequest(new { error = "Facebook authentication failed" });
+        if (!result.Succeeded)
+        {
+            var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
+            var errorMessage = Uri.EscapeDataString("Facebook authentication failed");
+            return Redirect($"{frontendUrl}/oauth-callback?success=false&error={errorMessage}");
+        }
 
         return await HandleExternalLogin(result);
     }
 
     private async Task<IActionResult> HandleExternalLogin(Microsoft.AspNetCore.Authentication.AuthenticateResult authResult)
     {
+        var frontendUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
+
         var claims = authResult.Principal?.Claims;
         var email = authResult.Principal?.FindFirst(ClaimTypes.Email)?.Value;
         var name = authResult.Principal?.FindFirst(ClaimTypes.Name)?.Value;
 
         if (string.IsNullOrEmpty(email))
-            return BadRequest(new AuthResponse { Success = false, Message = "Email not provided by OAuth provider" });
+        {
+            var errorMessage = Uri.EscapeDataString("Email not provided by OAuth provider");
+            return Redirect($"{frontendUrl}/oauth-callback?success=false&error={errorMessage}");
+        }
 
         var user = await _userManager.FindByEmailAsync(email);
 
@@ -113,8 +129,9 @@ public class AuthController : ControllerBase
             var createResult = await _userManager.CreateAsync(user);
             if (!createResult.Succeeded)
             {
-                var errors = createResult.Errors.Select(e => e.Description).ToList();
-                return BadRequest(new AuthResponse { Success = false, Message = "Failed to create user", Errors = errors });
+                var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+                var errorMessage = Uri.EscapeDataString($"Failed to create user: {errors}");
+                return Redirect($"{frontendUrl}/oauth-callback?success=false&error={errorMessage}");
             }
 
             _logger.LogInformation($"New user created via OAuth: {user.Email}");
@@ -135,13 +152,7 @@ public class AuthController : ControllerBase
 
         var token = _tokenService.GenerateAccessToken(user, roles);
 
-        return Ok(new AuthResponse
-        {
-            Success = true,
-            Message = "Successfully authenticated via OAuth",
-            Token = token,
-            User = await MapToUserDto(user)
-        });
+        return Redirect($"{frontendUrl}/oauth-callback?success=true&token={Uri.EscapeDataString(token)}");
     }
 
     [HttpPost("register")]
