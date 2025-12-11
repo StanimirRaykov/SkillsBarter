@@ -76,9 +76,7 @@ public class SkillsControllerTests
         var request = new CreateSkillRequest { Name = "Skill", CategoryCode = "TECH" };
         var response = new SkillResponse { Id = 1, Name = "Skill", CategoryCode = "TECH", CategoryLabel = "Technology" };
         _skillServiceMock.Setup(s => s.CreateSkillAsync(request)).ReturnsAsync(response);
-        
         var result = await _controller.CreateSkill(request);
-
         var createdAt = Assert.IsType<CreatedAtActionResult>(result);
         Assert.Equal(nameof(SkillsController.GetSkillById), createdAt.ActionName);
         Assert.Equal(response.Id, createdAt.RouteValues?["id"]);
