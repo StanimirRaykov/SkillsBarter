@@ -112,6 +112,7 @@ public class AuthController : ControllerBase
         }
 
         var user = await _userManager.FindByEmailAsync(email);
+        var isNewUser = user == null;
 
         if (user == null)
         {
@@ -134,6 +135,13 @@ public class AuthController : ControllerBase
                 return Redirect($"{frontendUrl}/oauth-callback?success=false&error={errorMessage}");
             }
 
+            // Assign default Freemium role to new OAuth user
+            var roleResult = await _userManager.AddToRoleAsync(user, "Freemium");
+            if (!roleResult.Succeeded)
+            {
+                _logger.LogWarning($"Failed to assign Freemium role to OAuth user {user.Email}");
+            }
+
             _logger.LogInformation($"New user created via OAuth: {user.Email}");
         }
         else
@@ -152,7 +160,13 @@ public class AuthController : ControllerBase
 
         var token = _tokenService.GenerateAccessToken(user, roles);
 
-        return Redirect($"{frontendUrl}/oauth-callback?success=true&token={Uri.EscapeDataString(token)}");
+        var redirectUrl = $"{frontendUrl}/oauth-callback?success=true&token={Uri.EscapeDataString(token)}";
+        if (isNewUser)
+        {
+            redirectUrl += "&newUser=true";
+        }
+
+        return Redirect(redirectUrl);
     }
 
     [HttpPost("register")]
