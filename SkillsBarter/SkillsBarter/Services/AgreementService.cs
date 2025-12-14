@@ -217,12 +217,17 @@ public class AgreementService : IAgreementService
                 agreement.OfferId
             );
 
-            var otherPartyId = userId == agreement.RequesterId ? agreement.ProviderId : agreement.RequesterId;
             await _notificationService.CreateAsync(
-                otherPartyId,
+                agreement.RequesterId,
                 NotificationType.AgreementCompleted,
                 "Agreement Completed",
-                "Your agreement has been marked as completed"
+                $"Agreement #{agreementId.ToString()[..8]} is marked complete. Please leave a review."
+            );
+            await _notificationService.CreateAsync(
+                agreement.ProviderId,
+                NotificationType.AgreementCompleted,
+                "Agreement Completed",
+                $"Agreement #{agreementId.ToString()[..8]} is marked complete. Please leave a review."
             );
 
             return MapToAgreementResponse(agreement);
@@ -403,6 +408,19 @@ public class AgreementService : IAgreementService
             _logger.LogInformation(
                 "Agreement {AgreementId} marked as abandoned. Penalties created for both parties.",
                 agreement.Id
+            );
+
+            await _notificationService.CreateAsync(
+                agreement.RequesterId,
+                NotificationType.AgreementCancelled,
+                "Agreement Cancelled",
+                $"Agreement #{agreement.Id.ToString()[..8]} has been cancelled due to inactivity"
+            );
+            await _notificationService.CreateAsync(
+                agreement.ProviderId,
+                NotificationType.AgreementCancelled,
+                "Agreement Cancelled",
+                $"Agreement #{agreement.Id.ToString()[..8]} has been cancelled due to inactivity"
             );
         }
 

@@ -12,12 +12,14 @@ namespace SkillsBarter.Tests.Services;
 public class OfferServiceTests
 {
     private readonly Mock<ILogger<OfferService>> _mockLogger;
+    private readonly Mock<INotificationService> _mockNotificationService;
     private ApplicationDbContext _context = null!;
     private OfferService _offerService = null!;
 
     public OfferServiceTests()
     {
         _mockLogger = new Mock<ILogger<OfferService>>();
+        _mockNotificationService = new Mock<INotificationService>();
         SetupInMemoryDatabase();
     }
 
@@ -28,7 +30,7 @@ public class OfferServiceTests
             .Options;
 
         _context = new ApplicationDbContext(options);
-        _offerService = new OfferService(_context, _mockLogger.Object);
+        _offerService = new OfferService(_context, _mockNotificationService.Object, _mockLogger.Object);
     }
 
     private async Task<(ApplicationUser user, Skill skill)> SetupTestDataAsync()
