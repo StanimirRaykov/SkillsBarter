@@ -26,7 +26,8 @@ public class AgreementService : IAgreementService
         Guid offerId,
         Guid requesterId,
         Guid providerId,
-        string? terms
+        string? terms,
+        List<CreateMilestoneRequest>? milestones = null
     )
     {
         using var transaction = await _dbContext.Database.BeginTransactionAsync();
@@ -128,6 +129,23 @@ public class AgreementService : IAgreementService
             offer.StatusCode = OfferStatusCode.UnderAgreement;
             offer.UpdatedAt = DateTime.UtcNow;
             _dbContext.Offers.Update(offer);
+
+            if (milestones != null && milestones.Count > 0)
+            {
+                foreach (var milestoneRequest in milestones)
+                {
+                    var milestone = new Milestone
+                    {
+                        Id = Guid.NewGuid(),
+                        AgreementId = agreement.Id,
+                        Title = milestoneRequest.Title?.Trim() ?? string.Empty,
+                        Amount = milestoneRequest.Amount,
+                        Status = MilestoneStatus.Pending,
+                        DueAt = milestoneRequest.DueAt
+                    };
+                    _dbContext.Milestones.Add(milestone);
+                }
+            }
 
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();

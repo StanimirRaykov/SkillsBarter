@@ -124,7 +124,7 @@ public class AgreementsControllerTests
         };
 
         _agreementServiceMock.Setup(s =>
-                s.CreateAgreementAsync(request.OfferId, request.RequesterId, request.ProviderId, request.Terms))
+                s.CreateAgreementAsync(request.OfferId, request.RequesterId, request.ProviderId, request.Terms, null))
             .ReturnsAsync((AgreementResponse?)null);
 
         var result = await _controller.CreateAgreement(request);
@@ -160,7 +160,7 @@ public class AgreementsControllerTests
         };
 
         _agreementServiceMock.Setup(s =>
-                s.CreateAgreementAsync(request.OfferId, request.RequesterId, request.ProviderId, request.Terms))
+                s.CreateAgreementAsync(request.OfferId, request.RequesterId, request.ProviderId, request.Terms, null))
             .ReturnsAsync(agreementResponse);
 
         var result = await _controller.CreateAgreement(request);
@@ -185,7 +185,7 @@ public class AgreementsControllerTests
         };
 
         _agreementServiceMock.Setup(s =>
-                s.CreateAgreementAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>()))
+                s.CreateAgreementAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<List<CreateMilestoneRequest>?>()))
             .ThrowsAsync(new Exception("database error"));
 
         var result = await _controller.CreateAgreement(request);

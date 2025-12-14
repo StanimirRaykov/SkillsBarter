@@ -325,7 +325,7 @@ public class ProposalServiceTests
 
         var agreementId = Guid.NewGuid();
         _agreementServiceMock.Setup(a => a.CreateAgreementAsync(
-                offer.Id, proposer.Id, offerOwner.Id, proposal.Terms))
+                offer.Id, proposer.Id, offerOwner.Id, proposal.Terms, null))
             .ReturnsAsync(new AgreementResponse { Id = agreementId });
 
         var request = new RespondToProposalRequest { Action = ProposalResponseAction.Accept };

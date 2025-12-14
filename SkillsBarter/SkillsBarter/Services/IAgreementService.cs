@@ -8,7 +8,8 @@ public interface IAgreementService
         Guid offerId,
         Guid requesterId,
         Guid providerId,
-        string? terms
+        string? terms,
+        List<CreateMilestoneRequest>? milestones = null
     );
     Task<AgreementResponse?> CompleteAgreementAsync(Guid agreementId, Guid userId);
     Task<AgreementResponse?> GetAgreementByIdAsync(Guid agreementId);
