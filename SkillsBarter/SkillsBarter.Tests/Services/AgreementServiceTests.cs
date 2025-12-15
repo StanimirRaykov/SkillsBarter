@@ -240,7 +240,7 @@ public class AgreementServiceTests
             Agreement = agreement,
             Title = "Milestone 1",
             Amount = 100,
-            Status = "Pending"
+            Status = MilestoneStatus.Pending
         };
 
         var payment = new Payment

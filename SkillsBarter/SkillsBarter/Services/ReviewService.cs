@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SkillsBarter.Constants;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
@@ -8,11 +9,16 @@ namespace SkillsBarter.Services;
 public class ReviewService : IReviewService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<ReviewService> _logger;
 
-    public ReviewService(ApplicationDbContext dbContext, ILogger<ReviewService> logger)
+    public ReviewService(
+        ApplicationDbContext dbContext,
+        INotificationService notificationService,
+        ILogger<ReviewService> logger)
     {
         _dbContext = dbContext;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -119,6 +125,13 @@ public class ReviewService : IReviewService
 
             _logger.LogInformation("Review created successfully: {ReviewId}. Recipient {RecipientId} new reputation score: {ReputationScore}",
                 review.Id, recipient.Id, recipient.ReputationScore);
+
+            await _notificationService.CreateAsync(
+                request.RecipientId,
+                NotificationType.ReviewReceived,
+                "New Review Received",
+                $"{reviewer.Name} left you a review"
+            );
 
             return MapToReviewResponse(review, recipient.Name, reviewer.Name, request.AgreementId);
         }

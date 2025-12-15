@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SkillsBarter.Constants;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
@@ -8,11 +9,16 @@ namespace SkillsBarter.Services;
 public class OfferService : IOfferService
 {
     private readonly ApplicationDbContext _dbContext;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<OfferService> _logger;
 
-    public OfferService(ApplicationDbContext dbContext, ILogger<OfferService> logger)
+    public OfferService(
+        ApplicationDbContext dbContext,
+        INotificationService notificationService,
+        ILogger<OfferService> logger)
     {
         _dbContext = dbContext;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -283,6 +289,16 @@ public class OfferService : IOfferService
             await _dbContext.SaveChangesAsync();
 
             _logger.LogInformation("Offer {OfferId} marked as cancelled by user {UserId}", offerId, userId);
+
+            if (isAdmin && offer.UserId != userId)
+            {
+                await _notificationService.CreateAsync(
+                    offer.UserId,
+                    NotificationType.OfferDeactivated,
+                    "Offer Deactivated",
+                    $"Your offer '{offer.Title}' has been deactivated by an administrator"
+                );
+            }
 
             return true;
         }

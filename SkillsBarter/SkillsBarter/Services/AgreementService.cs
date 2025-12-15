@@ -26,7 +26,8 @@ public class AgreementService : IAgreementService
         Guid offerId,
         Guid requesterId,
         Guid providerId,
-        string? terms
+        string? terms,
+        List<CreateMilestoneRequest>? milestones = null
     )
     {
         using var transaction = await _dbContext.Database.BeginTransactionAsync();
@@ -129,6 +130,23 @@ public class AgreementService : IAgreementService
             offer.UpdatedAt = DateTime.UtcNow;
             _dbContext.Offers.Update(offer);
 
+            if (milestones != null && milestones.Count > 0)
+            {
+                foreach (var milestoneRequest in milestones)
+                {
+                    var milestone = new Milestone
+                    {
+                        Id = Guid.NewGuid(),
+                        AgreementId = agreement.Id,
+                        Title = milestoneRequest.Title?.Trim() ?? string.Empty,
+                        Amount = milestoneRequest.Amount,
+                        Status = MilestoneStatus.Pending,
+                        DueAt = milestoneRequest.DueAt
+                    };
+                    _dbContext.Milestones.Add(milestone);
+                }
+            }
+
             await _dbContext.SaveChangesAsync();
             await transaction.CommitAsync();
 
@@ -217,12 +235,17 @@ public class AgreementService : IAgreementService
                 agreement.OfferId
             );
 
-            var otherPartyId = userId == agreement.RequesterId ? agreement.ProviderId : agreement.RequesterId;
             await _notificationService.CreateAsync(
-                otherPartyId,
+                agreement.RequesterId,
                 NotificationType.AgreementCompleted,
                 "Agreement Completed",
-                "Your agreement has been marked as completed"
+                $"Agreement #{agreementId.ToString()[..8]} is marked complete. Please leave a review."
+            );
+            await _notificationService.CreateAsync(
+                agreement.ProviderId,
+                NotificationType.AgreementCompleted,
+                "Agreement Completed",
+                $"Agreement #{agreementId.ToString()[..8]} is marked complete. Please leave a review."
             );
 
             return MapToAgreementResponse(agreement);
@@ -403,6 +426,19 @@ public class AgreementService : IAgreementService
             _logger.LogInformation(
                 "Agreement {AgreementId} marked as abandoned. Penalties created for both parties.",
                 agreement.Id
+            );
+
+            await _notificationService.CreateAsync(
+                agreement.RequesterId,
+                NotificationType.AgreementCancelled,
+                "Agreement Cancelled",
+                $"Agreement #{agreement.Id.ToString()[..8]} has been cancelled due to inactivity"
+            );
+            await _notificationService.CreateAsync(
+                agreement.ProviderId,
+                NotificationType.AgreementCancelled,
+                "Agreement Cancelled",
+                $"Agreement #{agreement.Id.ToString()[..8]} has been cancelled due to inactivity"
             );
         }
 

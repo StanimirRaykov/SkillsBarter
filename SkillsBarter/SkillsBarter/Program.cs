@@ -151,6 +151,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IProposalService, ProposalService>();
 builder.Services.AddScoped<IDeliverableService, DeliverableService>();
 builder.Services.AddScoped<IDisputeService, DisputeService>();
+builder.Services.AddScoped<IMilestoneService, MilestoneService>();
 builder.Services.AddScoped<RoleSeeder>();
 
 var resendApiKey = builder.Configuration["Resend:ApiKey"];
@@ -204,7 +205,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var roleSeeder = scope.ServiceProvider.GetRequiredService<RoleSeeder>();
-    await roleSeeder.SeedRolesAsync();
+    await roleSeeder.SeedAdminAndModeratorAsync();
 }
 
 if (app.Environment.IsDevelopment())

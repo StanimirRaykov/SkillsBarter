@@ -24,4 +24,8 @@ public static class NotificationType
     public const string PenaltyCharged = "penalty_charged";
 
     public const string ReviewReceived = "review_received";
+
+    public const string OfferDeactivated = "offer_deactivated";
+
+    public const string MilestoneCompleted = "milestone_completed";
 }

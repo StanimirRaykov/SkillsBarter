@@ -12,12 +12,14 @@ namespace SkillsBarter.Tests.Services;
 public class ReviewServiceTests
 {
     private readonly Mock<ILogger<ReviewService>> _mockLogger;
+    private readonly Mock<INotificationService> _mockNotificationService;
     private ApplicationDbContext _context = null!;
     private ReviewService _reviewService = null!;
 
     public ReviewServiceTests()
     {
         _mockLogger = new Mock<ILogger<ReviewService>>();
+        _mockNotificationService = new Mock<INotificationService>();
         SetupInMemoryDatabase();
     }
 
@@ -28,7 +30,7 @@ public class ReviewServiceTests
             .Options;
 
         _context = new ApplicationDbContext(options);
-        _reviewService = new ReviewService(_context, _mockLogger.Object);
+        _reviewService = new ReviewService(_context, _mockNotificationService.Object, _mockLogger.Object);
     }
 
     private async Task<(ApplicationUser reviewer, ApplicationUser recipient, Agreement agreement)> SetupTestDataAsync()

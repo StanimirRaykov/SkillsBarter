@@ -12,4 +12,7 @@ public interface IDisputeService
     Task<List<DisputeListResponse>> GetDisputesForModerationAsync(Guid moderatorId);
     Task<DisputeResponse?> MakeModeratorDecisionAsync(Guid disputeId, ModeratorDecisionRequest request, Guid moderatorId);
     Task ProcessExpiredDisputesAsync();
+    Task<List<AdminDisputeListResponse>> GetAllActiveDisputesAsync();
+    Task<AdminDisputeListResponse?> GetDisputeForAdminAsync(Guid disputeId);
+    Task<AdminDisputeListResponse?> AdminResolveDisputeAsync(Guid disputeId, AdminResolveDisputeRequest request, Guid adminId);
 }

@@ -6,7 +6,7 @@ public class Milestone
     public Guid AgreementId { get; set; }
     public string Title { get; set; } = string.Empty;
     public decimal Amount { get; set; }
-    public string Status { get; set; } = string.Empty;
+    public MilestoneStatus Status { get; set; } = MilestoneStatus.Pending;
     public DateTime? DueAt { get; set; }
 
     public virtual Agreement Agreement { get; set; } = null!;

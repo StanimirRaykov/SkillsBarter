@@ -45,7 +45,7 @@ public class MilestoneInfo
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
     public decimal Amount { get; set; }
-    public string Status { get; set; } = string.Empty;
+    public MilestoneStatus Status { get; set; }
     public DateTime? DueAt { get; set; }
 }
 

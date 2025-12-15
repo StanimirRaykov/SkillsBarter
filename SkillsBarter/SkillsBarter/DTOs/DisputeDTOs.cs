@@ -121,3 +121,53 @@ public class DisputeListResponse
     public DateTime ResponseDeadline { get; set; }
     public bool RequiresAction { get; set; }
 }
+
+public class AdminDisputeListResponse
+{
+    public Guid Id { get; set; }
+    public DisputeReasonCode ReasonCode { get; set; }
+    public string Description { get; set; } = string.Empty;
+    public DisputeStatus Status { get; set; }
+    public DisputeResolution Resolution { get; set; }
+    public int Score { get; set; }
+    public string? ResolutionSummary { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime ResponseDeadline { get; set; }
+    public DateTime? ResponseReceivedAt { get; set; }
+    public DateTime? EscalatedAt { get; set; }
+    public DateTime? ClosedAt { get; set; }
+
+    public AdminDisputeAgreementInfo Agreement { get; set; } = new();
+
+    public AdminDisputeUserInfo Complainer { get; set; } = new();
+    public AdminDisputeUserInfo Respondent { get; set; } = new();
+}
+
+public class AdminDisputeAgreementInfo
+{
+    public Guid Id { get; set; }
+    public string? Terms { get; set; }
+    public AgreementStatus Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? AcceptedAt { get; set; }
+}
+
+public class AdminDisputeUserInfo
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+}
+
+public class AdminResolveDisputeRequest
+{
+    [Required]
+    public DisputeResolution Resolution { get; set; }
+
+    [Required]
+    [MinLength(10)]
+    [MaxLength(2000)]
+    public string ResolutionNote { get; set; } = string.Empty;
+
+    public AgreementStatus? UpdateAgreementStatus { get; set; }
+}
