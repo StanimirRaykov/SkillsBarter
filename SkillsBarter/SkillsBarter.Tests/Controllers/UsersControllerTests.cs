@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SkillsBarter.Constants;
@@ -22,6 +23,7 @@ public class UsersControllerTests
     private readonly Mock<IReviewService> _reviewServiceMock = new();
     private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
     private readonly Mock<RoleManager<IdentityRole<Guid>>> _roleManagerMock;
+    private readonly Mock<IConfiguration> _configurationMock = new();
     private readonly Mock<ILogger<RoleSeeder>> _roleLoggerMock = new();
     private readonly RoleSeeder _roleSeeder;
     private readonly Mock<ILogger<UsersController>> _loggerMock = new();
@@ -50,6 +52,7 @@ public class UsersControllerTests
         _roleSeeder = new RoleSeeder(
             _roleManagerMock.Object,
             _userManagerMock.Object,
+            _configurationMock.Object,
             _roleLoggerMock.Object
         );
 

@@ -666,4 +666,140 @@ public class DisputeService : IDisputeService
             $"The dispute has been resolved {respondentText}"
         );
     }
+    public async Task<List<AdminDisputeListResponse>> GetAllActiveDisputesAsync()
+    {
+        var disputes = await _dbContext.Disputes
+            .AsNoTracking()
+            .Include(d => d.Agreement)
+            .Include(d => d.OpenedBy)
+            .Include(d => d.Respondent)
+            .Where(d => d.Status != DisputeStatus.Closed && d.Status != DisputeStatus.Resolved)
+            .OrderByDescending(d => d.CreatedAt)
+            .ToListAsync();
+
+        return disputes.Select(MapToAdminResponse).ToList();
+    }
+
+    public async Task<AdminDisputeListResponse?> GetDisputeForAdminAsync(Guid disputeId)
+    {
+        var dispute = await _dbContext.Disputes
+            .AsNoTracking()
+            .Include(d => d.Agreement)
+            .Include(d => d.OpenedBy)
+            .Include(d => d.Respondent)
+            .FirstOrDefaultAsync(d => d.Id == disputeId);
+
+        return dispute == null ? null : MapToAdminResponse(dispute);
+    }
+
+    public async Task<AdminDisputeListResponse?> AdminResolveDisputeAsync(
+        Guid disputeId,
+        AdminResolveDisputeRequest request,
+        Guid adminId)
+    {
+        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var dispute = await _dbContext.Disputes
+                .Include(d => d.Agreement)
+                .Include(d => d.OpenedBy)
+                .Include(d => d.Respondent)
+                .FirstOrDefaultAsync(d => d.Id == disputeId);
+
+            if (dispute == null)
+            {
+                _logger.LogWarning("Admin resolve failed: Dispute {DisputeId} not found", disputeId);
+                return null;
+            }
+
+            if (dispute.Status == DisputeStatus.Resolved || dispute.Status == DisputeStatus.Closed)
+            {
+                _logger.LogWarning("Admin resolve failed: Dispute {DisputeId} already resolved/closed", disputeId);
+                return null;
+            }
+
+            dispute.ModeratorId = adminId;
+            dispute.ModeratorNotes = request.ResolutionNote;
+            dispute.Resolution = request.Resolution;
+            dispute.Status = DisputeStatus.Resolved;
+            dispute.ClosedAt = DateTime.UtcNow;
+            dispute.ResolutionSummary = $"Admin resolution: {request.Resolution}. {request.ResolutionNote}";
+
+            if (request.Resolution == DisputeResolution.FavorsComplainer)
+            {
+                var reason = dispute.Score >= 40 && dispute.Score <= 60
+                    ? PenaltyReason.DisputeLostHalfPenalty
+                    : PenaltyReason.DisputeLostFullPenalty;
+                CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, reason);
+            }
+            else if (request.Resolution == DisputeResolution.FavorsRespondent)
+            {
+                var reason = dispute.Score >= 40 && dispute.Score <= 60
+                    ? PenaltyReason.DisputeLostHalfPenalty
+                    : PenaltyReason.DisputeLostFullPenalty;
+                CreatePenalty(dispute.OpenedById, dispute.AgreementId, dispute.Id, reason);
+            }
+
+            if (dispute.Agreement != null)
+            {
+                dispute.Agreement.Status = request.UpdateAgreementStatus ?? AgreementStatus.Cancelled;
+            }
+
+            await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            _logger.LogInformation(
+                "Dispute {DisputeId} resolved by admin {AdminId} with resolution {Resolution}",
+                disputeId, adminId, request.Resolution);
+
+            await NotifyDisputeResolutionAsync(dispute);
+
+            return MapToAdminResponse(dispute);
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Error resolving dispute {DisputeId} by admin {AdminId}", disputeId, adminId);
+            throw;
+        }
+    }
+
+    private static AdminDisputeListResponse MapToAdminResponse(Dispute dispute)
+    {
+        return new AdminDisputeListResponse
+        {
+            Id = dispute.Id,
+            ReasonCode = dispute.ReasonCode,
+            Description = dispute.Description,
+            Status = dispute.Status,
+            Resolution = dispute.Resolution,
+            Score = dispute.Score,
+            ResolutionSummary = dispute.ResolutionSummary,
+            CreatedAt = dispute.CreatedAt,
+            ResponseDeadline = dispute.ResponseDeadline,
+            ResponseReceivedAt = dispute.ResponseReceivedAt,
+            EscalatedAt = dispute.EscalatedAt,
+            ClosedAt = dispute.ClosedAt,
+            Agreement = new AdminDisputeAgreementInfo
+            {
+                Id = dispute.Agreement?.Id ?? Guid.Empty,
+                Terms = dispute.Agreement?.Terms,
+                Status = dispute.Agreement?.Status ?? AgreementStatus.Pending,
+                CreatedAt = dispute.Agreement?.CreatedAt ?? DateTime.MinValue,
+                AcceptedAt = dispute.Agreement?.AcceptedAt
+            },
+            Complainer = new AdminDisputeUserInfo
+            {
+                Id = dispute.OpenedById,
+                Name = dispute.OpenedBy?.Name ?? string.Empty,
+                Email = dispute.OpenedBy?.Email ?? string.Empty
+            },
+            Respondent = new AdminDisputeUserInfo
+            {
+                Id = dispute.RespondentId,
+                Name = dispute.Respondent?.Name ?? string.Empty,
+                Email = dispute.Respondent?.Email ?? string.Empty
+            }
+        };
+    }
 }

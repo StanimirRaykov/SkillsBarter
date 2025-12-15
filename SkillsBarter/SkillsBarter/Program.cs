@@ -205,7 +205,7 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var roleSeeder = scope.ServiceProvider.GetRequiredService<RoleSeeder>();
-    await roleSeeder.SeedRolesAsync();
+    await roleSeeder.SeedAdminAndModeratorAsync();
 }
 
 if (app.Environment.IsDevelopment())
