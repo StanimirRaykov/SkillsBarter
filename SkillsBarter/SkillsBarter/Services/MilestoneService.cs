@@ -43,9 +43,9 @@ public class MilestoneService : IMilestoneService
                 return null;
             }
 
-            if (request.Amount < 0)
+            if (request.DurationInDays <= 0)
             {
-                _logger.LogWarning("Create milestone failed: Amount cannot be negative");
+                _logger.LogWarning("Create milestone failed: Duration must be positive");
                 return null;
             }
 
@@ -54,7 +54,7 @@ public class MilestoneService : IMilestoneService
                 Id = Guid.NewGuid(),
                 AgreementId = agreementId,
                 Title = request.Title.Trim(),
-                Amount = request.Amount,
+                DurationInDays = request.DurationInDays,
                 Status = MilestoneStatus.Pending,
                 DueAt = request.DueAt
             };
@@ -136,14 +136,14 @@ public class MilestoneService : IMilestoneService
                 milestone.Title = request.Title.Trim();
             }
 
-            if (request.Amount.HasValue)
+            if (request.DurationInDays.HasValue)
             {
-                if (request.Amount.Value < 0)
+                if (request.DurationInDays.Value <= 0)
                 {
-                    _logger.LogWarning("Update milestone failed: Amount cannot be negative");
+                    _logger.LogWarning("Update milestone failed: Duration must be positive");
                     return null;
                 }
-                milestone.Amount = request.Amount.Value;
+                milestone.DurationInDays = request.DurationInDays.Value;
             }
 
             if (request.DueAt.HasValue)
@@ -255,7 +255,7 @@ public class MilestoneService : IMilestoneService
             Id = milestone.Id,
             AgreementId = milestone.AgreementId,
             Title = milestone.Title,
-            Amount = milestone.Amount,
+            DurationInDays = milestone.DurationInDays,
             Status = milestone.Status,
             DueAt = milestone.DueAt
         };

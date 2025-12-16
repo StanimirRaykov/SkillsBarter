@@ -95,11 +95,18 @@ public class AgreementServiceTests
     {
         var (requester, provider, offer, _) = await SeedOfferAsync();
 
+        var milestones = new List<CreateMilestoneRequest>
+        {
+            new CreateMilestoneRequest { Title = "Phase 1", DurationInDays = 7 },
+            new CreateMilestoneRequest { Title = "Phase 2", DurationInDays = 14 }
+        };
+
         var result = await _agreementService.CreateAgreementAsync(
             offer.Id,
             requester.Id,
             provider.Id,
-            "Terms"
+            "Terms",
+            milestones
         );
 
         Assert.NotNull(result);
@@ -239,7 +246,7 @@ public class AgreementServiceTests
             AgreementId = agreementId,
             Agreement = agreement,
             Title = "Milestone 1",
-            Amount = 100,
+            DurationInDays = 14,
             Status = MilestoneStatus.Pending
         };
 

@@ -65,7 +65,8 @@ public class AgreementsController : ControllerBase
                 request.OfferId,
                 request.RequesterId,
                 request.ProviderId,
-                request.Terms
+                request.Terms,
+                request.Milestones
             );
 
             if (agreement == null)
@@ -205,4 +206,8 @@ public class CreateAgreementRequest
     public Guid ProviderId { get; set; }
 
     public string? Terms { get; set; }
+
+    [Required]
+    [MinLength(1, ErrorMessage = "At least one milestone is required")]
+    public List<CreateMilestoneRequest> Milestones { get; set; } = new List<CreateMilestoneRequest>();
 }

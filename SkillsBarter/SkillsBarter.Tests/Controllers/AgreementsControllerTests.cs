@@ -81,7 +81,11 @@ public class AgreementsControllerTests
             OfferId = Guid.NewGuid(),
             RequesterId = Guid.NewGuid(),
             ProviderId = Guid.NewGuid(),
-            Terms = "Test terms"
+            Terms = "Test terms",
+            Milestones = new List<CreateMilestoneRequest>
+            {
+                new CreateMilestoneRequest { Title = "Milestone 1", DurationInDays = 7 }
+            }
         };
 
         var result = await _controller.CreateAgreement(request);
@@ -101,7 +105,11 @@ public class AgreementsControllerTests
             OfferId = Guid.NewGuid(),
             RequesterId = Guid.NewGuid(),
             ProviderId = Guid.NewGuid(),
-            Terms = "Test terms"
+            Terms = "Test terms",
+            Milestones = new List<CreateMilestoneRequest>
+            {
+                new CreateMilestoneRequest { Title = "Phase 1", DurationInDays = 5 }
+            }
         };
 
         var result = await _controller.CreateAgreement(request);
@@ -120,11 +128,15 @@ public class AgreementsControllerTests
             OfferId = Guid.NewGuid(),
             RequesterId = _currentUser.Id,
             ProviderId = Guid.NewGuid(),
-            Terms = "Test terms"
+            Terms = "Test terms",
+            Milestones = new List<CreateMilestoneRequest>
+            {
+                new CreateMilestoneRequest { Title = "Week 1", DurationInDays = 7 }
+            }
         };
 
         _agreementServiceMock.Setup(s =>
-                s.CreateAgreementAsync(request.OfferId, request.RequesterId, request.ProviderId, request.Terms, null))
+                s.CreateAgreementAsync(request.OfferId, request.RequesterId, request.ProviderId, request.Terms, request.Milestones))
             .ReturnsAsync((AgreementResponse?)null);
 
         var result = await _controller.CreateAgreement(request);
@@ -146,7 +158,12 @@ public class AgreementsControllerTests
             OfferId = Guid.NewGuid(),
             RequesterId = _currentUser.Id,
             ProviderId = Guid.NewGuid(),
-            Terms = "Test terms"
+            Terms = "Test terms",
+            Milestones = new List<CreateMilestoneRequest>
+            {
+                new CreateMilestoneRequest { Title = "Design Phase", DurationInDays = 10 },
+                new CreateMilestoneRequest { Title = "Implementation Phase", DurationInDays = 20 }
+            }
         };
 
         var agreementResponse = new AgreementResponse
@@ -160,7 +177,7 @@ public class AgreementsControllerTests
         };
 
         _agreementServiceMock.Setup(s =>
-                s.CreateAgreementAsync(request.OfferId, request.RequesterId, request.ProviderId, request.Terms, null))
+                s.CreateAgreementAsync(request.OfferId, request.RequesterId, request.ProviderId, request.Terms, request.Milestones))
             .ReturnsAsync(agreementResponse);
 
         var result = await _controller.CreateAgreement(request);
@@ -181,7 +198,11 @@ public class AgreementsControllerTests
             OfferId = Guid.NewGuid(),
             RequesterId = _currentUser.Id,
             ProviderId = Guid.NewGuid(),
-            Terms = "Test terms"
+            Terms = "Test terms",
+            Milestones = new List<CreateMilestoneRequest>
+            {
+                new CreateMilestoneRequest { Title = "Task", DurationInDays = 3 }
+            }
         };
 
         _agreementServiceMock.Setup(s =>

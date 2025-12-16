@@ -293,7 +293,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.AgreementId).HasColumnName("agreement_id");
             entity.Property(e => e.Title).HasColumnName("title").IsRequired();
-            entity.Property(e => e.Amount).HasColumnName("amount").HasColumnType("numeric");
+            entity.Property(e => e.DurationInDays).HasColumnName("duration_in_days");
             entity.Property(e => e.Status).HasColumnName("status").IsRequired();
             entity.Property(e => e.DueAt).HasColumnName("due_at");
 
