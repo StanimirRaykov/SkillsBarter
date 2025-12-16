@@ -118,11 +118,12 @@ public class DisputeService : IDisputeService
             _logger.LogInformation("Dispute {DisputeId} opened by {UserId} for agreement {AgreementId} with score {Score}",
                 dispute.Id, userId, request.AgreementId, dispute.Score);
 
+            var complainerName = agreement.RequesterId == userId ? agreement.Requester.Name : agreement.Provider.Name;
             await _notificationService.CreateAsync(
                 respondentId,
                 NotificationType.DisputeOpened,
                 "Dispute Opened",
-                $"A dispute has been opened against you. Respond within 72 hours."
+                $"{complainerName} opened a dispute against you. Respond within 72 hours."
             );
 
             return await MapToResponseAsync(dispute, userId);
@@ -199,7 +200,7 @@ public class DisputeService : IDisputeService
                 dispute.OpenedById,
                 NotificationType.DisputeResponse,
                 "Dispute Response Received",
-                "The respondent has replied to your dispute"
+                $"{dispute.Respondent?.Name ?? "The respondent"} replied to your dispute"
             );
 
             if (dispute.Status == DisputeStatus.EscalatedToModerator)

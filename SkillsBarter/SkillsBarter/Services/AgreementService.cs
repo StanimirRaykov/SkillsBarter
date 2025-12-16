@@ -166,13 +166,13 @@ public class AgreementService : IAgreementService
                 requesterId,
                 NotificationType.AgreementCreated,
                 "Agreement Created",
-                $"An agreement has been created for '{offer.Title}'"
+                $"Your offer was accepted by {provider.Name} for '{offer.Title}'"
             );
             await _notificationService.CreateAsync(
                 providerId,
                 NotificationType.AgreementCreated,
                 "Agreement Created",
-                $"An agreement has been created for '{offer.Title}'"
+                $"You reached an agreement with {requester.Name} for '{offer.Title}'"
             );
 
             return MapToAgreementResponse(agreement);
