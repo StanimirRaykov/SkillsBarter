@@ -19,8 +19,8 @@ public class EmailService : IEmailService
     {
         try
         {
-            var appUrl = _configuration["AppUrl"] ?? "http://localhost:5000";
-            var verificationUrl = $"{appUrl}/verify-email?token={verificationToken}";
+            var appUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
+            var verificationUrl = $"{appUrl}/verify-email?token={Uri.EscapeDataString(verificationToken)}";
             var fromEmail = _configuration["Email:FromAddress"] ?? "onboarding@resend.dev";
 
             var message = new EmailMessage
@@ -28,8 +28,12 @@ public class EmailService : IEmailService
                 From = fromEmail,
                 To = new[] { toEmail },
                 Subject = "Verify your SkillsBarter account",
-                TextBody = $@"Welcome to SkillsBarter, {userName}! Thank you for registering. Please verify your email address by clicking the link below:
-                {verificationUrl}.This link will expire in 24 hours. If you didn't create an account, please ignore this email."
+                TextBody =
+                    $@"Welcome to SkillsBarter, {userName}! Thank you for registering.
+
+                    Please verify your email address by clicking the link below:
+                    {verificationUrl}
+                    This link will expire in 24 hours. If you didn't create an account, please ignore this email."
             };
 
             await _resend.EmailSendAsync(message);
@@ -46,8 +50,8 @@ public class EmailService : IEmailService
     {
         try
         {
-            var appUrl = _configuration["AppUrl"] ?? "http://localhost:5000";
-            var resetUrl = $"{appUrl}/reset-password?token={resetToken}";
+            var appUrl = _configuration["FrontendUrl"] ?? "http://localhost:3000";
+            var resetUrl = $"{appUrl}/reset-password?token={Uri.EscapeDataString(resetToken)}";
             var fromEmail = _configuration["Email:FromAddress"] ?? "onboarding@resend.dev";
 
             var message = new EmailMessage

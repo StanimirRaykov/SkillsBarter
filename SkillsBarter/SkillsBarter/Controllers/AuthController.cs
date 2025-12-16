@@ -50,9 +50,9 @@ public class AuthController : ControllerBase
     [HttpGet("login-google")]
     public IActionResult LoginGoogle()
     {
-        var properties = new AuthenticationProperties 
-        { 
-            RedirectUri = Url.Action("GoogleCallback") 
+        var properties = new AuthenticationProperties
+        {
+            RedirectUri = Url.Action("GoogleCallback")
         };
         return Challenge(properties, GoogleDefaults.AuthenticationScheme);
     }
@@ -60,9 +60,9 @@ public class AuthController : ControllerBase
     [HttpGet("login-facebook")]
     public IActionResult LoginFacebook()
     {
-        var properties = new AuthenticationProperties 
-        { 
-            RedirectUri = Url.Action("FacebookCallback") 
+        var properties = new AuthenticationProperties
+        {
+            RedirectUri = Url.Action("FacebookCallback")
         };
         return Challenge(properties, FacebookDefaults.AuthenticationScheme);
     }
@@ -202,8 +202,11 @@ public class AuthController : ControllerBase
             });
         }
 
-        // Generating email verification token
-        string verificationToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        // Generating email verification token (URL-safe Base64)
+        string verificationToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
 
         var user = new ApplicationUser
         {
@@ -382,6 +385,9 @@ public class AuthController : ControllerBase
             return BadRequest(new { success = false, message = "Token is required" });
         }
 
+        // Some clients decode '+' as space in query strings. Normalize so legacy Base64 tokens still match.
+        token = NormalizeIncomingToken(token);
+
         var user = await _userManager.Users
             .FirstOrDefaultAsync(u => u.EmailVerificationToken == token);
 
@@ -456,7 +462,10 @@ public class AuthController : ControllerBase
             });
         }
 
-        string resetToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+        string resetToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
 
         user.PasswordResetToken = resetToken;
         user.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
@@ -509,8 +518,10 @@ public class AuthController : ControllerBase
             });
         }
 
+        var token = NormalizeIncomingToken(request.Token);
+
         var user = await _userManager.Users
-            .FirstOrDefaultAsync(u => u.PasswordResetToken == request.Token);
+            .FirstOrDefaultAsync(u => u.PasswordResetToken == token);
 
         if (user == null)
         {
@@ -560,6 +571,20 @@ public class AuthController : ControllerBase
             success = true,
             message = "Password has been reset successfully. You can now log in with your new password."
         });
+    }
+
+    private static string NormalizeIncomingToken(string token)
+    {
+
+        token = token.Trim().Replace(' ', '+');
+        const string allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=+/_";
+        var i = 0;
+        while (i < token.Length && allowed.IndexOf(token[i]) >= 0)
+        {
+            i++;
+        }
+
+        return i > 0 ? token[..i] : token;
     }
 
     private async Task<UserDto> MapToUserDto(ApplicationUser user)
