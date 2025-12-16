@@ -5,7 +5,7 @@ public class Milestone
     public Guid Id { get; set; }
     public Guid AgreementId { get; set; }
     public string Title { get; set; } = string.Empty;
-    public decimal Amount { get; set; }
+    public int DurationInDays { get; set; }
     public MilestoneStatus Status { get; set; } = MilestoneStatus.Pending;
     public DateTime? DueAt { get; set; }
 

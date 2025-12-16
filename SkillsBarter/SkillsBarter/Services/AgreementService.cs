@@ -33,6 +33,12 @@ public class AgreementService : IAgreementService
         using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
+            if (milestones == null || milestones.Count == 0)
+            {
+                _logger.LogWarning("Create agreement failed: At least one milestone is required");
+                return null;
+            }
+
             var offer = await _dbContext
                 .Offers.Include(o => o.User)
                 .FirstOrDefaultAsync(o => o.Id == offerId);
@@ -139,7 +145,7 @@ public class AgreementService : IAgreementService
                         Id = Guid.NewGuid(),
                         AgreementId = agreement.Id,
                         Title = milestoneRequest.Title?.Trim() ?? string.Empty,
-                        Amount = milestoneRequest.Amount,
+                        DurationInDays = milestoneRequest.DurationInDays,
                         Status = MilestoneStatus.Pending,
                         DueAt = milestoneRequest.DueAt
                     };
@@ -370,7 +376,7 @@ public class AgreementService : IAgreementService
                 {
                     Id = m.Id,
                     Title = m.Title,
-                    Amount = m.Amount,
+                    DurationInDays = m.DurationInDays,
                     Status = m.Status,
                     DueAt = m.DueAt,
                 })

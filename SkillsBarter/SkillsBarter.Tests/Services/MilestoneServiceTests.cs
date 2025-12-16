@@ -41,7 +41,7 @@ public class MilestoneServiceTests
         var request = new CreateMilestoneRequest
         {
             Title = "First Milestone",
-            Amount = 100m,
+            DurationInDays = 7,
             DueAt = DateTime.UtcNow.AddDays(7)
         };
 
@@ -49,7 +49,7 @@ public class MilestoneServiceTests
 
         Assert.NotNull(result);
         Assert.Equal("First Milestone", result.Title);
-        Assert.Equal(100m, result.Amount);
+        Assert.Equal(7, result.DurationInDays);
         Assert.Equal(MilestoneStatus.Pending, result.Status);
     }
 
@@ -85,14 +85,14 @@ public class MilestoneServiceTests
         var updateRequest = new UpdateMilestoneRequest
         {
             Title = "Updated Milestone",
-            Amount = 200m
+            DurationInDays = 14
         };
 
         var result = await _milestoneService.UpdateMilestoneAsync(milestone.Id, updateRequest);
 
         Assert.NotNull(result);
         Assert.Equal("Updated Milestone", result.Title);
-        Assert.Equal(200m, result.Amount);
+        Assert.Equal(14, result.DurationInDays);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public class MilestoneServiceTests
             Id = Guid.NewGuid(),
             AgreementId = agreement.Id,
             Title = "Test Milestone",
-            Amount = 100m,
+            DurationInDays = 7,
             Status = MilestoneStatus.Pending,
             DueAt = DateTime.UtcNow.AddDays(7)
         };
