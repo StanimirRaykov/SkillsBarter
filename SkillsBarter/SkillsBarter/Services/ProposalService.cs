@@ -152,7 +152,7 @@ public class ProposalService : IProposalService
                 offer.UserId,
                 NotificationType.ProposalReceived,
                 "New Proposal Received",
-                $"You received a new proposal for your offer '{offer.Title}'"
+                $"{proposer.Name} sent you a proposal for '{offer.Title}'"
             );
 
             return await MapToProposalResponseAsync(proposal);
@@ -280,22 +280,23 @@ public class ProposalService : IProposalService
             );
 
             var recipientId = responderId == proposal.ProposerId ? proposal.OfferOwnerId : proposal.ProposerId;
+            var responderName = responderId == proposal.ProposerId ? proposal.Proposer.Name : proposal.OfferOwner.Name;
             var (notifType, title, message) = request.Action switch
             {
                 ProposalResponseAction.Accept => (
                     NotificationType.ProposalAccepted,
                     "Proposal Accepted",
-                    $"Your proposal for '{proposal.Offer.Title}' has been accepted"
+                    $"Your proposal for '{proposal.Offer.Title}' was accepted by {responderName}"
                 ),
                 ProposalResponseAction.Modify => (
                     NotificationType.ProposalModified,
                     "Proposal Modified",
-                    $"The terms for proposal on '{proposal.Offer.Title}' have been modified"
+                    $"{responderName} modified the terms for '{proposal.Offer.Title}'"
                 ),
                 ProposalResponseAction.Decline => (
                     NotificationType.ProposalDeclined,
                     "Proposal Declined",
-                    $"Your proposal for '{proposal.Offer.Title}' has been declined"
+                    $"Your proposal for '{proposal.Offer.Title}' was declined by {responderName}"
                 ),
                 _ => (string.Empty, string.Empty, string.Empty)
             };
@@ -378,6 +379,7 @@ public class ProposalService : IProposalService
         {
             var proposal = await _dbContext.Proposals
                 .Include(p => p.Offer)
+                .Include(p => p.Proposer)
                 .FirstOrDefaultAsync(p => p.Id == proposalId);
 
             if (proposal == null)
@@ -443,7 +445,7 @@ public class ProposalService : IProposalService
                 proposal.OfferOwnerId,
                 NotificationType.ProposalWithdrawn,
                 "Proposal Withdrawn",
-                $"A proposal for your offer '{proposal.Offer.Title}' has been withdrawn"
+                $"{proposal.Proposer.Name} withdrew their proposal for '{proposal.Offer.Title}'"
             );
 
             return true;

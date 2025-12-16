@@ -29,6 +29,8 @@ public class DeliverableService : IDeliverableService
     {
         var agreement = await _dbContext
             .Agreements.Include(a => a.Deliverables)
+            .Include(a => a.Requester)
+            .Include(a => a.Provider)
             .FirstOrDefaultAsync(a => a.Id == request.AgreementId);
 
         if (agreement == null)
@@ -94,11 +96,12 @@ public class DeliverableService : IDeliverableService
         );
 
         var recipientId = userId == agreement.RequesterId ? agreement.ProviderId : agreement.RequesterId;
+        var submitterName = userId == agreement.RequesterId ? agreement.Requester?.Name : agreement.Provider?.Name;
         await _notificationService.CreateAsync(
             recipientId,
             NotificationType.DeliverableSubmitted,
             "Deliverable Submitted",
-            "A deliverable has been submitted for your agreement"
+            $"{submitterName ?? "A user"} submitted a deliverable for your agreement"
         );
 
         return await MapToResponseAsync(deliverable, userId);
@@ -108,6 +111,9 @@ public class DeliverableService : IDeliverableService
     {
         var deliverable = await _dbContext
             .Deliverables.Include(d => d.Agreement)
+                .ThenInclude(a => a.Requester)
+            .Include(d => d.Agreement)
+                .ThenInclude(a => a.Provider)
             .Include(d => d.SubmittedBy)
             .FirstOrDefaultAsync(d => d.Id == deliverableId);
 
@@ -151,11 +157,14 @@ public class DeliverableService : IDeliverableService
             userId
         );
 
+        var approverName = userId == deliverable.Agreement.RequesterId
+            ? deliverable.Agreement.Requester?.Name
+            : deliverable.Agreement.Provider?.Name;
         await _notificationService.CreateAsync(
             deliverable.SubmittedById,
             NotificationType.DeliverableApproved,
             "Deliverable Approved",
-            "Your deliverable has been approved"
+            $"{approverName ?? "The other party"} approved your deliverable"
         );
 
         return await MapToResponseAsync(deliverable, userId);
@@ -169,6 +178,9 @@ public class DeliverableService : IDeliverableService
     {
         var deliverable = await _dbContext
             .Deliverables.Include(d => d.Agreement)
+                .ThenInclude(a => a.Requester)
+            .Include(d => d.Agreement)
+                .ThenInclude(a => a.Provider)
             .Include(d => d.SubmittedBy)
             .FirstOrDefaultAsync(d => d.Id == deliverableId);
 
@@ -212,11 +224,14 @@ public class DeliverableService : IDeliverableService
             userId
         );
 
+        var reviewerName = userId == deliverable.Agreement.RequesterId
+            ? deliverable.Agreement.Requester?.Name
+            : deliverable.Agreement.Provider?.Name;
         await _notificationService.CreateAsync(
             deliverable.SubmittedById,
             NotificationType.RevisionRequested,
             "Revision Requested",
-            $"A revision has been requested: {request.Reason}"
+            $"{reviewerName ?? "The other party"} requested a revision: {request.Reason}"
         );
 
         return await MapToResponseAsync(deliverable, userId);
@@ -230,6 +245,9 @@ public class DeliverableService : IDeliverableService
     {
         var deliverable = await _dbContext
             .Deliverables.Include(d => d.Agreement)
+                .ThenInclude(a => a.Requester)
+            .Include(d => d.Agreement)
+                .ThenInclude(a => a.Provider)
             .Include(d => d.SubmittedBy)
             .FirstOrDefaultAsync(d => d.Id == deliverableId);
 
@@ -278,11 +296,12 @@ public class DeliverableService : IDeliverableService
         var recipientId = userId == deliverable.Agreement.RequesterId
             ? deliverable.Agreement.ProviderId
             : deliverable.Agreement.RequesterId;
+        var submitterName = deliverable.SubmittedBy?.Name ?? "A user";
         await _notificationService.CreateAsync(
             recipientId,
             NotificationType.DeliverableSubmitted,
             "Deliverable Resubmitted",
-            "A revised deliverable has been submitted for your agreement"
+            $"{submitterName} resubmitted a revised deliverable for your agreement"
         );
 
         return await MapToResponseAsync(deliverable, userId);
