@@ -90,7 +90,7 @@ public class ProposalService : IProposalService
                     && p.ProposerId == proposerId
                     && (
                         p.Status == ProposalStatus.PendingOfferOwnerReview
-                        || p.Status == ProposalStatus.PendingOfferOwnerReview
+                        || p.Status == ProposalStatus.PendingProposerReview
                     )
                 )
                 .FirstOrDefaultAsync();
@@ -152,7 +152,8 @@ public class ProposalService : IProposalService
                 offer.UserId,
                 NotificationType.ProposalReceived,
                 "New Proposal Received",
-                $"{proposer.Name} sent you a proposal for '{offer.Title}'"
+                $"{proposer.Name} sent you a proposal for '{offer.Title}'",
+                proposal.Id
             );
 
             return await MapToProposalResponseAsync(proposal);
@@ -211,7 +212,7 @@ public class ProposalService : IProposalService
 
             if (
                 proposal.Status != ProposalStatus.PendingOfferOwnerReview
-                && proposal.Status != ProposalStatus.PendingOfferOwnerReview
+                && proposal.Status != ProposalStatus.PendingProposerReview
             )
             {
                 _logger.LogWarning(
@@ -281,29 +282,32 @@ public class ProposalService : IProposalService
 
             var recipientId = responderId == proposal.ProposerId ? proposal.OfferOwnerId : proposal.ProposerId;
             var responderName = responderId == proposal.ProposerId ? proposal.Proposer.Name : proposal.OfferOwner.Name;
-            var (notifType, title, message) = request.Action switch
+            var (notifType, title, message, relatedId) = request.Action switch
             {
                 ProposalResponseAction.Accept => (
                     NotificationType.ProposalAccepted,
                     "Proposal Accepted",
-                    $"Your proposal for '{proposal.Offer.Title}' was accepted by {responderName}"
+                    $"Your proposal for '{proposal.Offer.Title}' was accepted by {responderName}",
+                    proposal.AgreementId
                 ),
                 ProposalResponseAction.Modify => (
                     NotificationType.ProposalModified,
                     "Proposal Modified",
-                    $"{responderName} modified the terms for '{proposal.Offer.Title}'"
+                    $"{responderName} modified the terms for '{proposal.Offer.Title}'",
+                    (Guid?)proposal.Id
                 ),
                 ProposalResponseAction.Decline => (
                     NotificationType.ProposalDeclined,
                     "Proposal Declined",
-                    $"Your proposal for '{proposal.Offer.Title}' was declined by {responderName}"
+                    $"Your proposal for '{proposal.Offer.Title}' was declined by {responderName}",
+                    (Guid?)proposal.Id
                 ),
-                _ => (string.Empty, string.Empty, string.Empty)
+                _ => (string.Empty, string.Empty, string.Empty, (Guid?)null)
             };
 
             if (!string.IsNullOrEmpty(notifType))
             {
-                await _notificationService.CreateAsync(recipientId, notifType, title, message);
+                await _notificationService.CreateAsync(recipientId, notifType, title, message, relatedId);
             }
 
             return await MapToProposalResponseAsync(proposal);
@@ -361,8 +365,18 @@ public class ProposalService : IProposalService
         proposal.LastModifiedByUserId = responderId;
         proposal.LastModifiedAt = DateTime.UtcNow;
 
-        proposal.PendingResponseFromUserId =
-            responderId == proposal.OfferOwnerId ? proposal.ProposerId : proposal.OfferOwnerId;
+        // Update pending responder and status based on who is modifying
+        if (responderId == proposal.OfferOwnerId)
+        {
+            // Offer owner counter-offered, now waiting for proposer
+            proposal.PendingResponseFromUserId = proposal.ProposerId;
+            proposal.Status = ProposalStatus.PendingProposerReview;
+        }
+        else
+        {
+            proposal.PendingResponseFromUserId = proposal.OfferOwnerId;
+            proposal.Status = ProposalStatus.PendingOfferOwnerReview;
+        }
     }
 
     private void HandleDecline(Proposal proposal, Guid responderId, string? message)
@@ -403,7 +417,7 @@ public class ProposalService : IProposalService
 
             if (
                 proposal.Status != ProposalStatus.PendingOfferOwnerReview
-                && proposal.Status != ProposalStatus.PendingOfferOwnerReview
+                && proposal.Status != ProposalStatus.PendingProposerReview
             )
             {
                 _logger.LogWarning(
@@ -445,7 +459,8 @@ public class ProposalService : IProposalService
                 proposal.OfferOwnerId,
                 NotificationType.ProposalWithdrawn,
                 "Proposal Withdrawn",
-                $"{proposal.Proposer.Name} withdrew their proposal for '{proposal.Offer.Title}'"
+                $"{proposal.Proposer.Name} withdrew their proposal for '{proposal.Offer.Title}'",
+                proposal.Id
             );
 
             return true;
@@ -603,7 +618,7 @@ public class ProposalService : IProposalService
         return proposal.PendingResponseFromUserId == userId
             && (
                 proposal.Status == ProposalStatus.PendingOfferOwnerReview
-                || proposal.Status == ProposalStatus.PendingOfferOwnerReview
+                || proposal.Status == ProposalStatus.PendingProposerReview
             );
     }
 
@@ -614,7 +629,7 @@ public class ProposalService : IProposalService
                 p.Deadline < DateTime.UtcNow
                 && (
                     p.Status == ProposalStatus.PendingOfferOwnerReview
-                    || p.Status == ProposalStatus.PendingOfferOwnerReview
+                    || p.Status == ProposalStatus.PendingProposerReview
                 )
             )
             .ToListAsync();

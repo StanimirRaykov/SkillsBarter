@@ -6,5 +6,6 @@ public class NotificationDto
     public string Title { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
+    public Guid? RelatedEntityId { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }

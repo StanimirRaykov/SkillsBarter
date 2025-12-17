@@ -23,7 +23,7 @@ public class NotificationService : INotificationService
         _hubContext = hubContext;
     }
 
-    public async Task CreateAsync(Guid userId, string type, string title, string message)
+    public async Task CreateAsync(Guid userId, string type, string title, string message, Guid? relatedEntityId = null)
     {
         var notification = new Notification
         {
@@ -32,6 +32,7 @@ public class NotificationService : INotificationService
             Type = type,
             Title = title,
             Message = message,
+            RelatedEntityId = relatedEntityId,
             IsRead = false,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -47,6 +48,7 @@ public class NotificationService : INotificationService
                 Title = notification.Title,
                 Message = notification.Message,
                 Type = notification.Type,
+                RelatedEntityId = notification.RelatedEntityId,
                 CreatedAt = notification.CreatedAt
             };
 
@@ -99,6 +101,7 @@ public class NotificationService : INotificationService
                     Title = n.Title,
                     Message = n.Message,
                     Type = n.Type,
+                    RelatedEntityId = n.RelatedEntityId,
                     IsRead = n.IsRead,
                     CreatedAt = n.CreatedAt,
                     ReadAt = n.ReadAt
