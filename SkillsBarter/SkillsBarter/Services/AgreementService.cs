@@ -174,13 +174,15 @@ public class AgreementService : IAgreementService
                 requesterId,
                 NotificationType.AgreementCreated,
                 "Agreement Proposal Sent",
-                $"You have proposed an agreement to {provider.Name} for '{offer.Title}'"
+                $"You have proposed an agreement to {provider.Name} for '{offer.Title}'",
+                agreement.Id
             );
             await _notificationService.CreateAsync(
                 providerId,
                 NotificationType.AgreementCreated,
                 "New Agreement Proposal",
-                $"{requester.Name} has proposed an agreement for your offer '{offer.Title}'. Please review and accept/reject."
+                $"{requester.Name} has proposed an agreement for your offer '{offer.Title}'. Please review and accept/reject.",
+                agreement.Id
             );
 
             return MapToAgreementResponse(agreement);
@@ -253,13 +255,15 @@ public class AgreementService : IAgreementService
                 agreement.RequesterId,
                 NotificationType.AgreementCompleted,
                 "Agreement Completed",
-                $"Agreement #{agreementId.ToString()[..8]} is marked complete. Please leave a review."
+                $"Agreement #{agreementId.ToString()[..8]} is marked complete. Please leave a review.",
+                agreementId
             );
             await _notificationService.CreateAsync(
                 agreement.ProviderId,
                 NotificationType.AgreementCompleted,
                 "Agreement Completed",
-                $"Agreement #{agreementId.ToString()[..8]} is marked complete. Please leave a review."
+                $"Agreement #{agreementId.ToString()[..8]} is marked complete. Please leave a review.",
+                agreementId
             );
 
             return MapToAgreementResponse(agreement);
@@ -446,13 +450,15 @@ public class AgreementService : IAgreementService
                 agreement.RequesterId,
                 NotificationType.AgreementCancelled,
                 "Agreement Cancelled",
-                $"Agreement #{agreement.Id.ToString()[..8]} has been cancelled due to inactivity"
+                $"Agreement #{agreement.Id.ToString()[..8]} has been cancelled due to inactivity",
+                agreement.Id
             );
             await _notificationService.CreateAsync(
                 agreement.ProviderId,
                 NotificationType.AgreementCancelled,
                 "Agreement Cancelled",
-                $"Agreement #{agreement.Id.ToString()[..8]} has been cancelled due to inactivity"
+                $"Agreement #{agreement.Id.ToString()[..8]} has been cancelled due to inactivity",
+                agreement.Id
             );
         }
 
