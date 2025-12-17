@@ -133,6 +133,10 @@ public class AgreementService : IAgreementService
             _dbContext.Agreements.Add(agreement);
 
             offer.StatusCode = OfferStatusCode.UnderAgreement;
+            if (offer.CreatedAt.Kind == DateTimeKind.Unspecified)
+            {
+                offer.CreatedAt = DateTime.SpecifyKind(offer.CreatedAt, DateTimeKind.Utc);
+            }
             offer.UpdatedAt = DateTime.UtcNow;
             _dbContext.Offers.Update(offer);
 
@@ -147,7 +151,11 @@ public class AgreementService : IAgreementService
                         Title = milestoneRequest.Title?.Trim() ?? string.Empty,
                         DurationInDays = milestoneRequest.DurationInDays,
                         Status = MilestoneStatus.Pending,
-                        DueAt = milestoneRequest.DueAt
+                        DueAt = milestoneRequest.DueAt.HasValue 
+                            ? (milestoneRequest.DueAt.Value.Kind == DateTimeKind.Unspecified 
+                                ? DateTime.SpecifyKind(milestoneRequest.DueAt.Value, DateTimeKind.Utc) 
+                                : milestoneRequest.DueAt.Value.ToUniversalTime())
+                            : null
                     };
                     _dbContext.Milestones.Add(milestone);
                 }
@@ -165,14 +173,14 @@ public class AgreementService : IAgreementService
             await _notificationService.CreateAsync(
                 requesterId,
                 NotificationType.AgreementCreated,
-                "Agreement Created",
-                $"Your offer was accepted by {provider.Name} for '{offer.Title}'"
+                "Agreement Proposal Sent",
+                $"You have proposed an agreement to {provider.Name} for '{offer.Title}'"
             );
             await _notificationService.CreateAsync(
                 providerId,
                 NotificationType.AgreementCreated,
-                "Agreement Created",
-                $"You reached an agreement with {requester.Name} for '{offer.Title}'"
+                "New Agreement Proposal",
+                $"{requester.Name} has proposed an agreement for your offer '{offer.Title}'. Please review and accept/reject."
             );
 
             return MapToAgreementResponse(agreement);
