@@ -173,14 +173,14 @@ public class AgreementService : IAgreementService
             await _notificationService.CreateAsync(
                 requesterId,
                 NotificationType.AgreementCreated,
-                "Agreement Created",
-                $"Your offer was accepted by {provider.Name} for '{offer.Title}'"
+                "Agreement Proposal Sent",
+                $"You have proposed an agreement to {provider.Name} for '{offer.Title}'"
             );
             await _notificationService.CreateAsync(
                 providerId,
                 NotificationType.AgreementCreated,
-                "Agreement Created",
-                $"You reached an agreement with {requester.Name} for '{offer.Title}'"
+                "New Agreement Proposal",
+                $"{requester.Name} has proposed an agreement for your offer '{offer.Title}'. Please review and accept/reject."
             );
 
             return MapToAgreementResponse(agreement);
