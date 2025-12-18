@@ -49,10 +49,16 @@ public class MilestoneService : IMilestoneService
                 return null;
             }
 
+            var responsibleUserId = request.ResponsibleUserId ?? agreement.RequesterId;
+            var responsibleUser = responsibleUserId == agreement.RequesterId
+                ? agreement.Requester
+                : agreement.Provider;
+
             var milestone = new Milestone
             {
                 Id = Guid.NewGuid(),
                 AgreementId = agreementId,
+                ResponsibleUserId = responsibleUserId,
                 Title = request.Title.Trim(),
                 DurationInDays = request.DurationInDays,
                 Status = MilestoneStatus.Pending,
@@ -64,7 +70,7 @@ public class MilestoneService : IMilestoneService
 
             _logger.LogInformation("Milestone {MilestoneId} created for agreement {AgreementId}", milestone.Id, agreementId);
 
-            return MapToMilestoneResponse(milestone);
+            return MapToMilestoneResponse(milestone, responsibleUser?.Name ?? string.Empty);
         }
         catch (Exception ex)
         {
@@ -78,6 +84,7 @@ public class MilestoneService : IMilestoneService
         try
         {
             var milestone = await _dbContext.Milestones
+                .Include(m => m.ResponsibleUser)
                 .FirstOrDefaultAsync(m => m.Id == milestoneId);
 
             if (milestone == null)
@@ -86,7 +93,7 @@ public class MilestoneService : IMilestoneService
                 return null;
             }
 
-            return MapToMilestoneResponse(milestone);
+            return MapToMilestoneResponse(milestone, milestone.ResponsibleUser?.Name ?? string.Empty);
         }
         catch (Exception ex)
         {
@@ -100,11 +107,12 @@ public class MilestoneService : IMilestoneService
         try
         {
             var milestones = await _dbContext.Milestones
+                .Include(m => m.ResponsibleUser)
                 .Where(m => m.AgreementId == agreementId)
                 .OrderBy(m => m.DueAt)
                 .ToListAsync();
 
-            return milestones.Select(MapToMilestoneResponse).ToList();
+            return milestones.Select(m => MapToMilestoneResponse(m, m.ResponsibleUser?.Name ?? string.Empty)).ToList();
         }
         catch (Exception ex)
         {
@@ -117,7 +125,9 @@ public class MilestoneService : IMilestoneService
     {
         try
         {
-            var milestone = await _dbContext.Milestones.FindAsync(milestoneId);
+            var milestone = await _dbContext.Milestones
+                .Include(m => m.ResponsibleUser)
+                .FirstOrDefaultAsync(m => m.Id == milestoneId);
 
             if (milestone == null)
             {
@@ -156,7 +166,7 @@ public class MilestoneService : IMilestoneService
 
             _logger.LogInformation("Milestone {MilestoneId} updated successfully", milestoneId);
 
-            return MapToMilestoneResponse(milestone);
+            return MapToMilestoneResponse(milestone, milestone.ResponsibleUser?.Name ?? string.Empty);
         }
         catch (Exception ex)
         {
@@ -202,6 +212,7 @@ public class MilestoneService : IMilestoneService
         try
         {
             var milestone = await _dbContext.Milestones
+                .Include(m => m.ResponsibleUser)
                 .Include(m => m.Agreement)
                     .ThenInclude(a => a.Requester)
                 .Include(m => m.Agreement)
@@ -239,7 +250,7 @@ public class MilestoneService : IMilestoneService
                 $"Milestone '{milestone.Title}' has been completed"
             );
 
-            return MapToMilestoneResponse(milestone);
+            return MapToMilestoneResponse(milestone, milestone.ResponsibleUser?.Name ?? string.Empty);
         }
         catch (Exception ex)
         {
@@ -248,12 +259,14 @@ public class MilestoneService : IMilestoneService
         }
     }
 
-    private MilestoneResponse MapToMilestoneResponse(Milestone milestone)
+    private MilestoneResponse MapToMilestoneResponse(Milestone milestone, string responsibleUserName)
     {
         return new MilestoneResponse
         {
             Id = milestone.Id,
             AgreementId = milestone.AgreementId,
+            ResponsibleUserId = milestone.ResponsibleUserId,
+            ResponsibleUserName = responsibleUserName,
             Title = milestone.Title,
             DurationInDays = milestone.DurationInDays,
             Status = milestone.Status,

@@ -21,6 +21,9 @@ public class CreateProposalRequest
 
     [StringLength(500)]
     public string? Message { get; set; }
+
+    [Required]
+    public List<CreateMilestoneRequest> Milestones { get; set; } = new();
 }
 
 public class RespondToProposalRequest
@@ -38,6 +41,7 @@ public class RespondToProposalRequest
 
     [StringLength(500)]
     public string? Message { get; set; }
+    public List<CreateMilestoneRequest>? Milestones { get; set; }
 }
 
 public enum ProposalResponseAction

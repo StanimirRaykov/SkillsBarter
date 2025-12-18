@@ -43,6 +43,8 @@ public class AgreementOfferInfo
 public class MilestoneInfo
 {
     public Guid Id { get; set; }
+    public Guid ResponsibleUserId { get; set; }
+    public string ResponsibleUserName { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public int DurationInDays { get; set; }
     public MilestoneStatus Status { get; set; }

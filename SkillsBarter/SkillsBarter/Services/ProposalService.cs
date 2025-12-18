@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using SkillsBarter.Constants;
 using SkillsBarter.Data;
@@ -84,6 +85,12 @@ public class ProposalService : IProposalService
                 return null;
             }
 
+            if (request.Milestones == null || request.Milestones.Count == 0)
+            {
+                _logger.LogWarning("Create proposal failed: At least one milestone is required");
+                return null;
+            }
+
             var existingProposal = await _dbContext
                 .Proposals.Where(p =>
                     p.OfferId == request.OfferId
@@ -106,6 +113,15 @@ public class ProposalService : IProposalService
                 return null;
             }
 
+            // Serialize proposer's milestones (set ResponsibleUserId to proposer)
+            var proposerMilestones = request.Milestones.Select(m => new CreateMilestoneRequest
+            {
+                Title = m.Title,
+                DurationInDays = m.DurationInDays,
+                DueAt = m.DueAt,
+                ResponsibleUserId = proposerId
+            }).ToList();
+
             var proposal = new Proposal
             {
                 Id = Guid.NewGuid(),
@@ -119,6 +135,7 @@ public class ProposalService : IProposalService
                 PendingResponseFromUserId = offer.UserId,
                 ModificationCount = 0,
                 CreatedAt = DateTime.UtcNow,
+                ProposedMilestones = JsonSerializer.Serialize(proposerMilestones),
             };
 
             _dbContext.Proposals.Add(proposal);
@@ -226,7 +243,14 @@ public class ProposalService : IProposalService
             switch (request.Action)
             {
                 case ProposalResponseAction.Accept:
-                    await HandleAcceptAsync(proposal, responderId, request.Message);
+                    if (request.Milestones == null || request.Milestones.Count == 0)
+                    {
+                        _logger.LogWarning(
+                            "Respond to proposal failed: At least one milestone is required when accepting"
+                        );
+                        return null;
+                    }
+                    await HandleAcceptAsync(proposal, responderId, request.Message, request.Milestones);
                     break;
 
                 case ProposalResponseAction.Modify:
@@ -320,17 +344,38 @@ public class ProposalService : IProposalService
         }
     }
 
-    private async Task HandleAcceptAsync(Proposal proposal, Guid responderId, string? message)
+    private async Task HandleAcceptAsync(Proposal proposal, Guid responderId, string? message, List<CreateMilestoneRequest> accepterMilestones)
     {
         proposal.Status = ProposalStatus.Accepted;
         proposal.AcceptedAt = DateTime.UtcNow;
         proposal.PendingResponseFromUserId = null;
 
+        var proposerMilestones = new List<CreateMilestoneRequest>();
+        if (!string.IsNullOrEmpty(proposal.ProposedMilestones))
+        {
+            proposerMilestones = JsonSerializer.Deserialize<List<CreateMilestoneRequest>>(proposal.ProposedMilestones)
+                ?? new List<CreateMilestoneRequest>();
+        }
+
+        foreach (var milestone in accepterMilestones)
+        {
+            milestone.ResponsibleUserId = responderId;
+        }
+
+        var allMilestones = proposerMilestones.Concat(accepterMilestones).ToList();
+
+        _logger.LogInformation(
+            "Creating agreement with {ProposerMilestoneCount} proposer milestones and {AccepterMilestoneCount} accepter milestones",
+            proposerMilestones.Count,
+            accepterMilestones.Count
+        );
+
         var agreementResult = await _agreementService.CreateAgreementAsync(
             proposal.OfferId,
             proposal.ProposerId,
             proposal.OfferOwnerId,
-            proposal.Terms
+            proposal.Terms,
+            allMilestones
         );
 
         if (agreementResult != null)
@@ -344,10 +389,7 @@ public class ProposalService : IProposalService
         }
         else
         {
-            _logger.LogWarning(
-                "Failed to create agreement from proposal {ProposalId}",
-                proposal.Id
-            );
+            throw new InvalidOperationException($"Failed to create agreement from proposal {proposal.Id}");
         }
     }
 

@@ -292,6 +292,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.AgreementId).HasColumnName("agreement_id");
+            entity.Property(e => e.ResponsibleUserId).HasColumnName("responsible_user_id").IsRequired();
             entity.Property(e => e.Title).HasColumnName("title").IsRequired();
             entity.Property(e => e.DurationInDays).HasColumnName("duration_in_days");
             entity.Property(e => e.Status).HasColumnName("status").IsRequired();
@@ -302,6 +303,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .WithMany(a => a.Milestones)
                 .HasForeignKey(e => e.AgreementId)
                 .OnDelete(DeleteBehavior.Cascade);
+            
+            entity
+                .HasOne(e => e.ResponsibleUser)
+                .WithMany()
+                .HasForeignKey(e => e.ResponsibleUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Payment>(entity =>
@@ -605,6 +612,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.AcceptedAt).HasColumnName("accepted_at");
             entity.Property(e => e.AgreementId).HasColumnName("agreement_id");
+            entity.Property(e => e.ProposedMilestones).HasColumnName("proposed_milestones");
 
             entity
                 .HasOne(e => e.Offer)

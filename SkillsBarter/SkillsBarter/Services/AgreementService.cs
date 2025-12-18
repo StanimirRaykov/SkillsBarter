@@ -30,7 +30,10 @@ public class AgreementService : IAgreementService
         List<CreateMilestoneRequest>? milestones = null
     )
     {
-        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        var existingTransaction = _dbContext.Database.CurrentTransaction;
+        var transaction = existingTransaction ?? await _dbContext.Database.BeginTransactionAsync();
+        var ownsTransaction = existingTransaction == null;
+
         try
         {
             if (milestones == null || milestones.Count == 0)
@@ -144,16 +147,19 @@ public class AgreementService : IAgreementService
             {
                 foreach (var milestoneRequest in milestones)
                 {
+                    var responsibleUserId = milestoneRequest.ResponsibleUserId ?? requesterId;
+
                     var milestone = new Milestone
                     {
                         Id = Guid.NewGuid(),
                         AgreementId = agreement.Id,
+                        ResponsibleUserId = responsibleUserId,
                         Title = milestoneRequest.Title?.Trim() ?? string.Empty,
                         DurationInDays = milestoneRequest.DurationInDays,
                         Status = MilestoneStatus.Pending,
-                        DueAt = milestoneRequest.DueAt.HasValue 
-                            ? (milestoneRequest.DueAt.Value.Kind == DateTimeKind.Unspecified 
-                                ? DateTime.SpecifyKind(milestoneRequest.DueAt.Value, DateTimeKind.Utc) 
+                        DueAt = milestoneRequest.DueAt.HasValue
+                            ? (milestoneRequest.DueAt.Value.Kind == DateTimeKind.Unspecified
+                                ? DateTime.SpecifyKind(milestoneRequest.DueAt.Value, DateTimeKind.Utc)
                                 : milestoneRequest.DueAt.Value.ToUniversalTime())
                             : null
                     };
@@ -162,7 +168,11 @@ public class AgreementService : IAgreementService
             }
 
             await _dbContext.SaveChangesAsync();
-            await transaction.CommitAsync();
+
+            if (ownsTransaction)
+            {
+                await transaction.CommitAsync();
+            }
 
             _logger.LogInformation(
                 "Agreement {AgreementId} created for offer {OfferId}. Offer status set to UnderAgreement",
@@ -189,7 +199,10 @@ public class AgreementService : IAgreementService
         }
         catch (Exception ex)
         {
-            await transaction.RollbackAsync();
+            if (ownsTransaction)
+            {
+                await transaction.RollbackAsync();
+            }
             _logger.LogError(ex, "Error creating agreement for offer {OfferId}", offerId);
             throw;
         }
@@ -308,6 +321,7 @@ public class AgreementService : IAgreementService
                 .Include(a => a.Offer)
                     .ThenInclude(o => o.Skill)
                 .Include(a => a.Milestones)
+                    .ThenInclude(m => m.ResponsibleUser)
                 .Include(a => a.Payments)
                 .Include(a => a.Reviews)
                     .ThenInclude(r => r.Reviewer)
@@ -387,6 +401,8 @@ public class AgreementService : IAgreementService
                 .Milestones.Select(m => new MilestoneInfo
                 {
                     Id = m.Id,
+                    ResponsibleUserId = m.ResponsibleUserId,
+                    ResponsibleUserName = m.ResponsibleUser?.Name ?? string.Empty,
                     Title = m.Title,
                     DurationInDays = m.DurationInDays,
                     Status = m.Status,
