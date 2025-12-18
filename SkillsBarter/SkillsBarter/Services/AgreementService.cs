@@ -344,6 +344,65 @@ public class AgreementService : IAgreementService
         }
     }
 
+    public async Task<AgreementListResponse> GetUserAgreementsAsync(Guid userId, AgreementStatus? status = null, int page = 1, int pageSize = 10)
+    {
+        try
+        {
+            var query = _dbContext.Agreements
+                .Include(a => a.Requester)
+                .Include(a => a.Provider)
+                .Include(a => a.Offer)
+                    .ThenInclude(o => o.Skill)
+                .Include(a => a.Milestones)
+                .Where(a => a.RequesterId == userId || a.ProviderId == userId);
+
+            if (status.HasValue)
+            {
+                query = query.Where(a => a.Status == status.Value);
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var agreements = await query
+                .OrderByDescending(a => a.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var summaries = agreements.Select(a => new AgreementSummaryResponse
+            {
+                Id = a.Id,
+                OfferId = a.OfferId,
+                OfferTitle = a.Offer.Title,
+                SkillName = a.Offer.Skill?.Name ?? "Unknown",
+                RequesterId = a.RequesterId,
+                RequesterName = a.Requester.Name,
+                ProviderId = a.ProviderId,
+                ProviderName = a.Provider.Name,
+                Status = a.Status,
+                CreatedAt = a.CreatedAt,
+                CompletedAt = a.CompletedAt,
+                TotalMilestones = a.Milestones.Count,
+                CompletedMilestones = a.Milestones.Count(m => m.Status == MilestoneStatus.Completed),
+                Role = a.RequesterId == userId ? "Requester" : "Provider"
+            }).ToList();
+
+            return new AgreementListResponse
+            {
+                Agreements = summaries,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving agreements for user {UserId}", userId);
+            throw;
+        }
+    }
+
     private AgreementResponse MapToAgreementResponse(Agreement agreement)
     {
         return new AgreementResponse
