@@ -31,7 +31,10 @@ public class OffersController : ControllerBase
         try
         {
             var filters = request ?? new GetOffersRequest();
+            _logger.LogInformation("GetOffers called with: Q={Q}, SkillId={SkillId}, Skill={Skill}, Page={Page}, PageSize={PageSize}",
+                filters.Q, filters.SkillId, filters.Skill, filters.Page, filters.PageSize);
             var offers = await _offerService.GetOffersAsync(filters);
+            _logger.LogInformation("Returning {Count} offers", offers.Items?.Count ?? 0);
             return Ok(offers);
         }
         catch (Exception ex)

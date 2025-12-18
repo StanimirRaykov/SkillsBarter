@@ -77,25 +77,32 @@ public class OfferService : IOfferService
         {
             request.Validate();
 
+            _logger.LogInformation("OfferService.GetOffersAsync - Search Query: '{Q}', SkillId: {SkillId}, Skill: {Skill}",
+                request.Q, request.SkillId, request.Skill);
+
             var query = _dbContext.Offers
                 .Include(o => o.Status)
                 .Include(o => o.Skill)
+                .Include(o => o.User)
                 .Where(o => o.StatusCode == OfferStatusCode.Active)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.Skill))
             {
+                _logger.LogInformation("Filtering by Skill category: {Skill}", request.Skill);
                 query = query.Where(o => o.Skill.CategoryCode == request.Skill);
             }
 
             if (request.SkillId.HasValue)
             {
+                _logger.LogInformation("Filtering by SkillId: {SkillId}", request.SkillId);
                 query = query.Where(o => o.SkillId == request.SkillId.Value);
             }
 
             if (!string.IsNullOrWhiteSpace(request.Q))
             {
                 var keyword = request.Q.ToLower();
+                _logger.LogInformation("Applying search filter with keyword: '{Keyword}'", keyword);
                 query = query.Where(o =>
                     o.Title.ToLower().Contains(keyword) ||
                     (o.Description != null && o.Description.ToLower().Contains(keyword))
@@ -103,6 +110,7 @@ public class OfferService : IOfferService
             }
 
             var total = await query.CountAsync();
+            _logger.LogInformation("🔎 Found {Total} offers matching criteria", total);
 
             var offers = await query
                 .OrderByDescending(o => o.CreatedAt)
@@ -261,10 +269,6 @@ public class OfferService : IOfferService
             throw;
         }
     }
-    
-    // For business purposes we do not delete offers, 
-    // we mark them as cancelled
-    // Might change in the future
     public async Task<bool> DeleteOfferAsync(Guid offerId, Guid userId, bool isAdmin)
     {
         try
@@ -315,6 +319,7 @@ public class OfferService : IOfferService
         {
             Id = offer.Id,
             UserId = offer.UserId,
+            OwnerName = offer.User?.Name ?? "Unknown User",
             SkillId = offer.SkillId,
             Title = offer.Title,
             Description = offer.Description,
