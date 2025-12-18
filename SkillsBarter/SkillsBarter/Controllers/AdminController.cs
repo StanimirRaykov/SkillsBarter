@@ -45,7 +45,7 @@ public class AdminController : ControllerBase
             .ToListAsync();
 
         var userDtos = new List<AdminUserDto>();
-        
+
         var userIds = users.Select(u => u.Id).ToList();
         var userRolesMap = await _dbContext.UserRoles
             .Where(ur => userIds.Contains(ur.UserId))
@@ -98,7 +98,8 @@ public class AdminController : ControllerBase
 
         if (request.IsBanned)
         {
-            await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            var permanentBanDate = DateTimeOffset.UtcNow.AddYears(100);
+            await _userManager.SetLockoutEndDateAsync(user, permanentBanDate);
         }
         else
         {
@@ -161,7 +162,7 @@ public class AdminController : ControllerBase
 
         return Ok(dispute);
     }
-    
+
     [HttpPut("disputes/{id:guid}/resolve")]
     public async Task<IActionResult> ResolveDispute(
         Guid id,
