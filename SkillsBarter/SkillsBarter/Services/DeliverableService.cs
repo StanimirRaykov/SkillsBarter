@@ -79,6 +79,7 @@ public class DeliverableService : IDeliverableService
             Id = Guid.NewGuid(),
             AgreementId = request.AgreementId,
             SubmittedById = userId,
+            MilestoneId = request.MilestoneId,
             Link = request.Link,
             Description = request.Description,
             Status = DeliverableStatus.Submitted,
@@ -86,6 +87,16 @@ public class DeliverableService : IDeliverableService
         };
 
         _dbContext.Deliverables.Add(deliverable);
+
+        if (request.MilestoneId.HasValue)
+        {
+            var milestone = await _dbContext.Milestones.FindAsync(request.MilestoneId.Value);
+            if (milestone != null && milestone.ResponsibleUserId == userId && milestone.Status == MilestoneStatus.Pending)
+            {
+                milestone.Status = MilestoneStatus.InProgress;
+            }
+        }
+
         await _dbContext.SaveChangesAsync();
 
         _logger.LogInformation(
@@ -147,6 +158,15 @@ public class DeliverableService : IDeliverableService
 
         deliverable.Status = DeliverableStatus.Approved;
         deliverable.ApprovedAt = DateTime.UtcNow;
+
+        if (deliverable.MilestoneId.HasValue)
+        {
+            var milestone = await _dbContext.Milestones.FindAsync(deliverable.MilestoneId.Value);
+            if (milestone != null)
+            {
+                milestone.Status = MilestoneStatus.Completed;
+            }
+        }
 
         await _dbContext.SaveChangesAsync();
         await CheckAndCompleteAgreementAsync(deliverable.Agreement);
@@ -215,6 +235,15 @@ public class DeliverableService : IDeliverableService
         deliverable.Status = DeliverableStatus.RevisionRequested;
         deliverable.RevisionReason = request.Reason;
         deliverable.RevisionCount++;
+
+        if (deliverable.MilestoneId.HasValue)
+        {
+            var milestone = await _dbContext.Milestones.FindAsync(deliverable.MilestoneId.Value);
+            if (milestone != null)
+            {
+                milestone.Status = MilestoneStatus.InProgress;
+            }
+        }
 
         await _dbContext.SaveChangesAsync();
 
@@ -418,6 +447,11 @@ public class DeliverableService : IDeliverableService
             await _dbContext.Entry(deliverable).Reference(d => d.Agreement).LoadAsync();
         }
 
+        if (deliverable.MilestoneId.HasValue && deliverable.Milestone == null)
+        {
+            await _dbContext.Entry(deliverable).Reference(d => d.Milestone).LoadAsync();
+        }
+
         var canReview =
             deliverable.Status == DeliverableStatus.Submitted
             && deliverable.Agreement != null
@@ -430,6 +464,8 @@ public class DeliverableService : IDeliverableService
             AgreementId = deliverable.AgreementId,
             SubmittedById = deliverable.SubmittedById,
             SubmittedByName = deliverable.SubmittedBy?.Name ?? string.Empty,
+            MilestoneId = deliverable.MilestoneId,
+            MilestoneTitle = deliverable.Milestone?.Title,
             Link = deliverable.Link,
             Description = deliverable.Description,
             Status = deliverable.Status,

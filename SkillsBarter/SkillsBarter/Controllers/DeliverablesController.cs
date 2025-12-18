@@ -31,7 +31,12 @@ public class DeliverablesController : ControllerBase
     {
         if (!ModelState.IsValid)
         {
-            return BadRequest(new { message = "Invalid request", errors = ModelState });
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            var message = errors.Any() ? string.Join(" ", errors) : "Invalid request";
+            return BadRequest(new { message, errors = ModelState });
         }
 
         var user = await _userManager.GetUserAsync(User);
@@ -108,7 +113,12 @@ public class DeliverablesController : ControllerBase
     {
         if (!ModelState.IsValid)
         {
-            return BadRequest(new { message = "Invalid request", errors = ModelState });
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            var message = errors.Any() ? string.Join(" ", errors) : "Invalid request";
+            return BadRequest(new { message, errors = ModelState });
         }
 
         var user = await _userManager.GetUserAsync(User);
@@ -131,7 +141,12 @@ public class DeliverablesController : ControllerBase
     {
         if (!ModelState.IsValid)
         {
-            return BadRequest(new { message = "Invalid request", errors = ModelState });
+            var errors = ModelState.Values
+                .SelectMany(v => v.Errors)
+                .Select(e => e.ErrorMessage)
+                .ToList();
+            var message = errors.Any() ? string.Join(" ", errors) : "Invalid request";
+            return BadRequest(new { message, errors = ModelState });
         }
 
         var user = await _userManager.GetUserAsync(User);
