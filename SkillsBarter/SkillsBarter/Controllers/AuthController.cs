@@ -146,6 +146,13 @@ public class AuthController : ControllerBase
         }
         else
         {
+            if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+            {
+                _logger.LogWarning($"OAuth login attempt by banned user {user.Email}");
+                var errorMessage = Uri.EscapeDataString("Your account has been suspended.");
+                return Redirect($"{frontendUrl}/oauth-callback?success=false&error={errorMessage}");
+            }
+
             if (string.IsNullOrEmpty(user.Name) && !string.IsNullOrEmpty(name))
             {
                 user.Name = name;
@@ -326,6 +333,11 @@ public class AuthController : ControllerBase
         {
             _logger.LogWarning($"Failed login attempt for user {request.Email}");
             return Unauthorized(new AuthResponse { Success = false, Message = "Invalid email or password" });
+        }
+        if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
+        {
+            _logger.LogWarning($"Login attempt by banned user {request.Email}");
+            return Unauthorized(new AuthResponse { Success = false, Message = "Your account has been suspended." });
         }
 
         _logger.LogInformation($"User {user.Email} logged in successfully");
