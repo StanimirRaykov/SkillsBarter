@@ -8,8 +8,10 @@ public class SubmitDeliverableRequest
     [Required]
     public Guid AgreementId { get; set; }
 
+    public Guid? MilestoneId { get; set; }
+
     [Required]
-    [Url]
+    [Url(ErrorMessage = "Please provide a valid URL (e.g., https://github.com/...)")]
     [StringLength(2000)]
     public string Link { get; set; } = string.Empty;
 
@@ -31,6 +33,8 @@ public class DeliverableResponse
     public Guid AgreementId { get; set; }
     public Guid SubmittedById { get; set; }
     public string SubmittedByName { get; set; } = string.Empty;
+    public Guid? MilestoneId { get; set; }
+    public string? MilestoneTitle { get; set; }
     public string Link { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public DeliverableStatus Status { get; set; }
