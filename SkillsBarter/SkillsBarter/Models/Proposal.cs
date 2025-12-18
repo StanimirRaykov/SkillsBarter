@@ -33,6 +33,7 @@ public class Proposal
     public DateTime? AcceptedAt { get; set; }
 
     public Guid? AgreementId { get; set; }
+    public string? ProposedMilestones { get; set; }
 
     public virtual Offer Offer { get; set; } = null!;
     public virtual ApplicationUser Proposer { get; set; } = null!;
