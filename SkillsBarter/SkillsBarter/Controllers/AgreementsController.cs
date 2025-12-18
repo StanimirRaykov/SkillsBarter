@@ -92,6 +92,44 @@ public class AgreementsController : ControllerBase
         }
     }
 
+    [HttpGet("my")]
+    [Authorize]
+    public async Task<IActionResult> GetMyAgreements(
+        [FromQuery] int? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        try
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+            {
+                return Unauthorized(new { message = "User not authenticated" });
+            }
+
+            Models.AgreementStatus? agreementStatus = status.HasValue
+                ? (Models.AgreementStatus)status.Value
+                : null;
+
+            var result = await _agreementService.GetUserAgreementsAsync(
+                currentUser.Id,
+                agreementStatus,
+                page,
+                pageSize
+            );
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving user agreements");
+            return StatusCode(
+                500,
+                new { message = "An error occurred while retrieving agreements" }
+            );
+        }
+    }
+
     [HttpGet("{id}")]
     [Authorize]
     public async Task<IActionResult> GetAgreement(Guid id)
