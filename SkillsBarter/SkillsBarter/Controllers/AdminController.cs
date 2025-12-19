@@ -16,17 +16,20 @@ namespace SkillsBarter.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly IDisputeService _disputeService;
+    private readonly IAgreementService _agreementService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleSeeder _roleSeeder;
     private readonly ApplicationDbContext _dbContext;
 
     public AdminController(
         IDisputeService disputeService,
+        IAgreementService agreementService,
         UserManager<ApplicationUser> userManager,
         RoleSeeder roleSeeder,
         ApplicationDbContext dbContext)
     {
         _disputeService = disputeService;
+        _agreementService = agreementService;
         _userManager = userManager;
         _roleSeeder = roleSeeder;
         _dbContext = dbContext;
@@ -144,6 +147,20 @@ public class AdminController : ControllerBase
         }
 
         return Ok(new { message = $"User role updated to {request.Role} successfully." });
+    }
+
+    [HttpGet("agreements")]
+    public async Task<IActionResult> GetAllAgreements(
+        [FromQuery] int? status = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        Models.AgreementStatus? agreementStatus = status.HasValue
+            ? (Models.AgreementStatus)status.Value
+            : null;
+
+        var result = await _agreementService.GetAllAgreementsAsync(agreementStatus, page, pageSize);
+        return Ok(result);
     }
 
     [HttpGet("disputes")]

@@ -16,5 +16,6 @@ public interface IAgreementService
     Task<AgreementResponse?> GetAgreementByIdAsync(Guid agreementId);
     Task<AgreementDetailResponse?> GetAgreementDetailByIdAsync(Guid agreementId);
     Task<AgreementListResponse> GetUserAgreementsAsync(Guid userId, AgreementStatus? status = null, int page = 1, int pageSize = 10);
+    Task<AdminAgreementListResponse> GetAllAgreementsAsync(AgreementStatus? status = null, int page = 1, int pageSize = 20);
     Task ProcessAbandonedAgreementsAsync();
 }

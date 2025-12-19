@@ -498,6 +498,72 @@ public class AgreementService : IAgreementService
         };
     }
 
+    public async Task<AdminAgreementListResponse> GetAllAgreementsAsync(AgreementStatus? status = null, int page = 1, int pageSize = 20)
+    {
+        try
+        {
+            var query = _dbContext.Agreements
+                .Include(a => a.Requester)
+                .Include(a => a.Provider)
+                .Include(a => a.Offer)
+                    .ThenInclude(o => o.Skill)
+                .Include(a => a.Milestones)
+                .Include(a => a.Deliverables)
+                .Include(a => a.Disputes)
+                .AsQueryable();
+
+            if (status.HasValue)
+            {
+                query = query.Where(a => a.Status == status.Value);
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var agreements = await query
+                .OrderByDescending(a => a.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var summaries = agreements.Select(a => new AdminAgreementSummaryResponse
+            {
+                Id = a.Id,
+                OfferId = a.OfferId,
+                OfferTitle = a.Offer.Title,
+                SkillName = a.Offer.Skill?.Name ?? "Unknown",
+                RequesterId = a.RequesterId,
+                RequesterName = a.Requester.Name,
+                RequesterEmail = a.Requester.Email ?? string.Empty,
+                ProviderId = a.ProviderId,
+                ProviderName = a.Provider.Name,
+                ProviderEmail = a.Provider.Email ?? string.Empty,
+                Status = a.Status,
+                CreatedAt = a.CreatedAt,
+                AcceptedAt = a.AcceptedAt,
+                CompletedAt = a.CompletedAt,
+                TotalMilestones = a.Milestones.Count,
+                CompletedMilestones = a.Milestones.Count(m => m.Status == MilestoneStatus.Completed),
+                TotalDeliverables = a.Deliverables.Count,
+                ApprovedDeliverables = a.Deliverables.Count(d => d.Status == DeliverableStatus.Approved),
+                HasDispute = a.Disputes.Any(d => d.Status == DisputeStatus.Open || d.Status == DisputeStatus.UnderReview)
+            }).ToList();
+
+            return new AdminAgreementListResponse
+            {
+                Agreements = summaries,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize)
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving all agreements for admin");
+            throw;
+        }
+    }
+
     public async Task ProcessAbandonedAgreementsAsync()
     {
         var abandonmentThreshold = DateTime.UtcNow.AddDays(-PenaltyConstants.AbandonmentDays);
