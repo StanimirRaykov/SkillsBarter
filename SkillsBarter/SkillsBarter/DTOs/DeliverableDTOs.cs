@@ -8,15 +8,17 @@ public class SubmitDeliverableRequest
     [Required]
     public Guid AgreementId { get; set; }
 
-    public Guid? MilestoneId { get; set; }
+    [Required]
+    [Display(Name = "milestone")]
+    public Guid MilestoneId { get; set; }
 
     [Required]
-    [Url(ErrorMessage = "Please provide a valid URL (e.g., https://github.com/...)")]
+    [Url(ErrorMessage = "Link must be a valid URL (e.g., https://github.com/...)")]
     [StringLength(2000)]
     public string Link { get; set; } = string.Empty;
 
     [Required]
-    [StringLength(2000, MinimumLength = 10)]
+    [StringLength(2000, MinimumLength = 10, ErrorMessage = "Description must be between 10 and 2000 characters.")]
     public string Description { get; set; } = string.Empty;
 }
 
@@ -49,7 +51,18 @@ public class DeliverableResponse
 public class AgreementDeliverablesResponse
 {
     public Guid AgreementId { get; set; }
-    public DeliverableResponse? RequesterDeliverable { get; set; }
-    public DeliverableResponse? ProviderDeliverable { get; set; }
-    public bool BothApproved { get; set; }
+    public List<MilestoneDeliverableResponse> Milestones { get; set; } = new();
+    public bool AllApproved { get; set; }
+}
+
+public class MilestoneDeliverableResponse
+{
+    public Guid MilestoneId { get; set; }
+    public string MilestoneTitle { get; set; } = string.Empty;
+    public MilestoneStatus MilestoneStatus { get; set; }
+    public int DurationInDays { get; set; }
+    public DateTime? DueAt { get; set; }
+    public Guid ResponsibleUserId { get; set; }
+    public string ResponsibleUserName { get; set; } = string.Empty;
+    public DeliverableResponse? Deliverable { get; set; }
 }

@@ -28,50 +28,79 @@ public class DeliverableService : IDeliverableService
     )
     {
         var agreement = await _dbContext
-            .Agreements.Include(a => a.Deliverables)
+            .Agreements.Include(a => a.Milestones)
+                .ThenInclude(m => m.ResponsibleUser)
+            .Include(a => a.Deliverables)
             .Include(a => a.Requester)
             .Include(a => a.Provider)
+            .Include(a => a.Offer)
             .FirstOrDefaultAsync(a => a.Id == request.AgreementId);
 
         if (agreement == null)
         {
-            _logger.LogWarning(
-                "Submit deliverable failed: Agreement {AgreementId} not found",
-                request.AgreementId
-            );
-            return null;
+            var message = $"Agreement {request.AgreementId} not found.";
+            _logger.LogWarning(message);
+            throw new InvalidOperationException(message);
         }
 
         if (!IsUserPartOfAgreement(agreement, userId))
         {
+            var message = "You are not part of this agreement.";
             _logger.LogWarning(
-                "Submit deliverable failed: User {UserId} is not part of agreement {AgreementId}",
-                userId,
-                request.AgreementId
+                "Submit deliverable failed: {Message} AgreementId={AgreementId}, UserId={UserId}",
+                message,
+                request.AgreementId,
+                userId
             );
-            return null;
+            throw new InvalidOperationException(message);
         }
 
         if (agreement.Status != AgreementStatus.InProgress)
         {
+            var message = "Agreement is not in progress; deliverables cannot be submitted.";
+            _logger.LogWarning(message + " AgreementId={AgreementId}", request.AgreementId);
+            throw new InvalidOperationException(message);
+        }
+
+        var milestone = agreement.Milestones.FirstOrDefault(m => m.Id == request.MilestoneId);
+        if (milestone == null)
+        {
+            var message = "Selected milestone does not exist for this agreement.";
             _logger.LogWarning(
-                "Submit deliverable failed: Agreement {AgreementId} is not in progress",
+                "{Message} MilestoneId={MilestoneId}, AgreementId={AgreementId}",
+                message,
+                request.MilestoneId,
                 request.AgreementId
             );
-            return null;
+            throw new InvalidOperationException(message);
+        }
+
+        if (milestone.ResponsibleUserId != userId)
+        {
+            var message = "You are not assigned to this milestone.";
+            _logger.LogWarning(
+                "{Message} UserId={UserId}, MilestoneId={MilestoneId}, AgreementId={AgreementId}",
+                message,
+                userId,
+                request.MilestoneId,
+                request.AgreementId
+            );
+            throw new InvalidOperationException(message);
         }
 
         var existingDeliverable = agreement.Deliverables.FirstOrDefault(d =>
-            d.SubmittedById == userId
+            d.MilestoneId == request.MilestoneId
         );
         if (existingDeliverable != null)
         {
+            var message = "A deliverable has already been submitted for this milestone.";
             _logger.LogWarning(
-                "Submit deliverable failed: User {UserId} already submitted a deliverable for agreement {AgreementId}",
-                userId,
+                "{Message} MilestoneId={MilestoneId}, AgreementId={AgreementId}",
+                message,
+                request.MilestoneId,
                 request.AgreementId
             );
-            return null;
+            throw new InvalidOperationException(message);
         }
 
         var deliverable = new Deliverable
@@ -88,13 +117,9 @@ public class DeliverableService : IDeliverableService
 
         _dbContext.Deliverables.Add(deliverable);
 
-        if (request.MilestoneId.HasValue)
+        if (milestone.Status == MilestoneStatus.Pending)
         {
-            var milestone = await _dbContext.Milestones.FindAsync(request.MilestoneId.Value);
-            if (milestone != null && milestone.ResponsibleUserId == userId && milestone.Status == MilestoneStatus.Pending)
-            {
-                milestone.Status = MilestoneStatus.InProgress;
-            }
+            milestone.Status = MilestoneStatus.InProgress;
         }
 
         await _dbContext.SaveChangesAsync();
@@ -125,35 +150,35 @@ public class DeliverableService : IDeliverableService
                 .ThenInclude(a => a.Requester)
             .Include(d => d.Agreement)
                 .ThenInclude(a => a.Provider)
+            .Include(d => d.Agreement)
+                .ThenInclude(a => a.Offer)
             .Include(d => d.SubmittedBy)
             .FirstOrDefaultAsync(d => d.Id == deliverableId);
 
         if (deliverable == null)
         {
-            _logger.LogWarning(
-                "Approve deliverable failed: Deliverable {DeliverableId} not found",
-                deliverableId
-            );
-            return null;
+            var message = "Deliverable not found.";
+            _logger.LogWarning("{Message} DeliverableId={DeliverableId}", message, deliverableId);
+            throw new InvalidOperationException(message);
         }
 
         if (!CanUserApprove(deliverable, userId))
         {
+            var message = "You cannot approve your own deliverable.";
             _logger.LogWarning(
-                "Approve deliverable failed: User {UserId} cannot approve deliverable {DeliverableId}",
+                "{Message} UserId={UserId}, DeliverableId={DeliverableId}",
+                message,
                 userId,
                 deliverableId
             );
-            return null;
+            throw new InvalidOperationException(message);
         }
 
         if (deliverable.Status != DeliverableStatus.Submitted)
         {
-            _logger.LogWarning(
-                "Approve deliverable failed: Deliverable {DeliverableId} is not in submitted status",
-                deliverableId
-            );
-            return null;
+            var message = "Deliverable is not awaiting approval.";
+            _logger.LogWarning("{Message} DeliverableId={DeliverableId}", message, deliverableId);
+            throw new InvalidOperationException(message);
         }
 
         deliverable.Status = DeliverableStatus.Approved;
@@ -206,30 +231,28 @@ public class DeliverableService : IDeliverableService
 
         if (deliverable == null)
         {
-            _logger.LogWarning(
-                "Request revision failed: Deliverable {DeliverableId} not found",
-                deliverableId
-            );
-            return null;
+            var message = "Deliverable not found.";
+            _logger.LogWarning("{Message} DeliverableId={DeliverableId}", message, deliverableId);
+            throw new InvalidOperationException(message);
         }
 
         if (!CanUserApprove(deliverable, userId))
         {
+            var message = "You cannot request a revision on your own deliverable.";
             _logger.LogWarning(
-                "Request revision failed: User {UserId} cannot request revision for deliverable {DeliverableId}",
+                "{Message} UserId={UserId}, DeliverableId={DeliverableId}",
+                message,
                 userId,
                 deliverableId
             );
-            return null;
+            throw new InvalidOperationException(message);
         }
 
         if (deliverable.Status != DeliverableStatus.Submitted)
         {
-            _logger.LogWarning(
-                "Request revision failed: Deliverable {DeliverableId} is not in submitted status",
-                deliverableId
-            );
-            return null;
+            var message = "Deliverable must be in submitted status to request a revision.";
+            _logger.LogWarning("{Message} DeliverableId={DeliverableId}", message, deliverableId);
+            throw new InvalidOperationException(message);
         }
 
         deliverable.Status = DeliverableStatus.RevisionRequested;
@@ -282,8 +305,15 @@ public class DeliverableService : IDeliverableService
 
         if (deliverable == null)
         {
+            var message = "Deliverable not found.";
+            _logger.LogWarning("{Message} DeliverableId={DeliverableId}", message, deliverableId);
+            throw new InvalidOperationException(message);
+        }
+
+        if (request.MilestoneId != deliverable.MilestoneId || request.AgreementId != deliverable.AgreementId)
+        {
             _logger.LogWarning(
-                "Resubmit deliverable failed: Deliverable {DeliverableId} not found",
+                "Resubmit deliverable failed: Request data does not match deliverable {DeliverableId}",
                 deliverableId
             );
             return null;
@@ -291,21 +321,21 @@ public class DeliverableService : IDeliverableService
 
         if (deliverable.SubmittedById != userId)
         {
+            var message = "Only the original submitter can resubmit this deliverable.";
             _logger.LogWarning(
-                "Resubmit deliverable failed: User {UserId} is not the submitter of deliverable {DeliverableId}",
+                "{Message} UserId={UserId}, DeliverableId={DeliverableId}",
+                message,
                 userId,
                 deliverableId
             );
-            return null;
+            throw new InvalidOperationException(message);
         }
 
         if (deliverable.Status != DeliverableStatus.RevisionRequested)
         {
-            _logger.LogWarning(
-                "Resubmit deliverable failed: Deliverable {DeliverableId} is not in revision requested status",
-                deliverableId
-            );
-            return null;
+            var message = "Deliverable must be in revision requested status to resubmit.";
+            _logger.LogWarning("{Message} DeliverableId={DeliverableId}", message, deliverableId);
+            throw new InvalidOperationException(message);
         }
 
         deliverable.Link = request.Link;
@@ -313,6 +343,15 @@ public class DeliverableService : IDeliverableService
         deliverable.Status = DeliverableStatus.Submitted;
         deliverable.RevisionReason = null;
         deliverable.SubmittedAt = DateTime.UtcNow;
+
+        if (deliverable.MilestoneId.HasValue)
+        {
+            var milestone = await _dbContext.Milestones.FindAsync(deliverable.MilestoneId.Value);
+            if (milestone != null && milestone.ResponsibleUserId == userId)
+            {
+                milestone.Status = MilestoneStatus.InProgress;
+            }
+        }
 
         await _dbContext.SaveChangesAsync();
 
@@ -359,6 +398,10 @@ public class DeliverableService : IDeliverableService
         var agreement = await _dbContext
             .Agreements.Include(a => a.Deliverables)
                 .ThenInclude(d => d.SubmittedBy)
+            .Include(a => a.Deliverables)
+                .ThenInclude(d => d.Milestone)
+            .Include(a => a.Milestones)
+                .ThenInclude(m => m.ResponsibleUser)
             .FirstOrDefaultAsync(a => a.Id == agreementId);
 
         if (agreement == null || !IsUserPartOfAgreement(agreement, userId))
@@ -366,57 +409,81 @@ public class DeliverableService : IDeliverableService
             return null;
         }
 
-        var requesterDeliverable = agreement.Deliverables.FirstOrDefault(d =>
-            d.SubmittedById == agreement.RequesterId
-        );
-        var providerDeliverable = agreement.Deliverables.FirstOrDefault(d =>
-            d.SubmittedById == agreement.ProviderId
-        );
+        var milestoneResponses = new List<MilestoneDeliverableResponse>();
 
-        var bothApproved =
-            requesterDeliverable?.Status == DeliverableStatus.Approved
-            && providerDeliverable?.Status == DeliverableStatus.Approved;
+        foreach (var milestone in agreement.Milestones)
+        {
+            var deliverable = agreement.Deliverables.FirstOrDefault(d =>
+                d.MilestoneId == milestone.Id
+            );
+
+            milestoneResponses.Add(new MilestoneDeliverableResponse
+            {
+                MilestoneId = milestone.Id,
+                MilestoneTitle = milestone.Title,
+                MilestoneStatus = milestone.Status,
+                DurationInDays = milestone.DurationInDays,
+                DueAt = milestone.DueAt,
+                ResponsibleUserId = milestone.ResponsibleUserId,
+                ResponsibleUserName = milestone.ResponsibleUser?.Name ?? string.Empty,
+                Deliverable = deliverable != null
+                    ? await MapToResponseAsync(deliverable, userId)
+                    : null
+            });
+        }
+
+        var allApproved = milestoneResponses.Count > 0
+            && milestoneResponses.All(m => m.Deliverable?.Status == DeliverableStatus.Approved);
 
         return new AgreementDeliverablesResponse
         {
             AgreementId = agreementId,
-            RequesterDeliverable =
-                requesterDeliverable != null
-                    ? await MapToResponseAsync(requesterDeliverable, userId)
-                    : null,
-            ProviderDeliverable =
-                providerDeliverable != null
-                    ? await MapToResponseAsync(providerDeliverable, userId)
-                    : null,
-            BothApproved = bothApproved,
+            Milestones = milestoneResponses,
+            AllApproved = allApproved,
         };
     }
 
     private async Task CheckAndCompleteAgreementAsync(Agreement agreement)
     {
+        var milestones = await _dbContext
+            .Milestones.Where(m => m.AgreementId == agreement.Id)
+            .ToListAsync();
+
+        if (milestones.Count == 0)
+        {
+            return;
+        }
+
         var deliverables = await _dbContext
             .Deliverables.Where(d => d.AgreementId == agreement.Id)
             .ToListAsync();
 
-        var requesterDeliverable = deliverables.FirstOrDefault(d =>
-            d.SubmittedById == agreement.RequesterId
-        );
-        var providerDeliverable = deliverables.FirstOrDefault(d =>
-            d.SubmittedById == agreement.ProviderId
+        var allApproved = milestones.All(m =>
+            deliverables.Any(d => d.MilestoneId == m.Id && d.Status == DeliverableStatus.Approved)
         );
 
-        if (
-            requesterDeliverable?.Status == DeliverableStatus.Approved
-            && providerDeliverable?.Status == DeliverableStatus.Approved
-        )
+        if (allApproved)
         {
+            if (agreement.Offer == null)
+            {
+                await _dbContext.Entry(agreement).Reference(a => a.Offer).LoadAsync();
+            }
+
             agreement.Status = AgreementStatus.Completed;
             agreement.CompletedAt = DateTime.UtcNow;
+            if (agreement.Offer != null)
+            {
+                agreement.Offer.StatusCode = OfferStatusCode.Completed;
+                agreement.Offer.UpdatedAt = DateTime.UtcNow;
+                _dbContext.Offers.Update(agreement.Offer);
+            }
+            _dbContext.Agreements.Update(agreement);
             await _dbContext.SaveChangesAsync();
 
             _logger.LogInformation(
-                "Agreement {AgreementId} completed - both deliverables approved",
-                agreement.Id
+                "Agreement {AgreementId} completed - all {MilestoneCount} milestone deliverables approved; offer marked Completed",
+                agreement.Id,
+                milestones.Count
             );
         }
     }

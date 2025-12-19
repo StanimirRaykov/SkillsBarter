@@ -132,7 +132,8 @@ public class OffersController : ControllerBase
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var isAdmin = await _userManager.IsInRoleAsync(user, Constants.AppRoles.Admin);
+            var isAdmin = await _userManager.IsInRoleAsync(user, Constants.AppRoles.Admin) || 
+                          await _userManager.IsInRoleAsync(user, Constants.AppRoles.Moderator);
 
             var offerResponse = await _offerService.UpdateOfferAsync(id, user.Id, request, isAdmin);
             if (offerResponse == null)
@@ -170,7 +171,8 @@ public class OffersController : ControllerBase
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var isAdmin = await _userManager.IsInRoleAsync(user, Constants.AppRoles.Admin);
+            var isAdmin = await _userManager.IsInRoleAsync(user, Constants.AppRoles.Admin) || 
+                          await _userManager.IsInRoleAsync(user, Constants.AppRoles.Moderator);
 
             var success = await _offerService.DeleteOfferAsync(id, user.Id, isAdmin);
             if (!success)
