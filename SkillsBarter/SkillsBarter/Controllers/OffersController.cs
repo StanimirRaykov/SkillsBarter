@@ -44,6 +44,34 @@ public class OffersController : ControllerBase
         }
     }
 
+    [HttpGet("mine")]
+    [Authorize]
+    public async Task<IActionResult> GetMyOffers([FromQuery] GetOffersRequest? request)
+    {
+        try
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                _logger.LogWarning("Authenticated user not found");
+                return Unauthorized(new { message = "User not found" });
+            }
+
+            var filters = request ?? new GetOffersRequest();
+            _logger.LogInformation("GetMyOffers called for user {UserId} with: Q={Q}, SkillId={SkillId}, Skill={Skill}, Page={Page}, PageSize={PageSize}",
+                user.Id, filters.Q, filters.SkillId, filters.Skill, filters.Page, filters.PageSize);
+
+            var offers = await _offerService.GetMyOffersAsync(user.Id, filters);
+            _logger.LogInformation("Returning {Count} offers for user {UserId}", offers.Items?.Count ?? 0, user.Id);
+            return Ok(offers);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching user offers with filters {@Filters}", request);
+            return StatusCode(500, new { message = "An error occurred while retrieving your offers" });
+        }
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetOfferById(Guid id)
     {
