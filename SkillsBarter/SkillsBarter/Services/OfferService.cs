@@ -77,8 +77,8 @@ public class OfferService : IOfferService
         {
             request.Validate();
 
-            _logger.LogInformation("OfferService.GetOffersAsync - Search Query: '{Q}', SkillId: {SkillId}, Skill: {Skill}",
-                request.Q, request.SkillId, request.Skill);
+            _logger.LogInformation("OfferService.GetOffersAsync - Search Query: '{Q}', SkillId: {SkillId}, Skill: {Skill}, UserId: {UserId}",
+                request.Q, request.SkillId, request.Skill, request.UserId);
 
             var query = _dbContext.Offers
                 .Include(o => o.Status)
@@ -97,6 +97,12 @@ public class OfferService : IOfferService
             {
                 _logger.LogInformation("Filtering by SkillId: {SkillId}", request.SkillId);
                 query = query.Where(o => o.SkillId == request.SkillId.Value);
+            }
+
+            if (request.UserId.HasValue)
+            {
+                _logger.LogInformation("Filtering by UserId: {UserId}", request.UserId);
+                query = query.Where(o => o.UserId == request.UserId.Value);
             }
 
             if (!string.IsNullOrWhiteSpace(request.Q))
@@ -131,6 +137,69 @@ public class OfferService : IOfferService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving offers with filters: {@Request}", request);
+            throw;
+        }
+    }
+    public async Task<PaginatedResponse<OfferResponse>> GetMyOffersAsync(Guid userId, GetOffersRequest request)
+    {
+        try
+        {
+            request.Validate();
+
+            _logger.LogInformation("OfferService.GetMyOffersAsync - User: {UserId}, Search Query: '{Q}', SkillId: {SkillId}, Skill: {Skill}",
+                userId, request.Q, request.SkillId, request.Skill);
+
+            var query = _dbContext.Offers
+                .Include(o => o.Status)
+                .Include(o => o.Skill)
+                .Include(o => o.User)
+                .Where(o => o.UserId == userId)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Skill))
+            {
+                _logger.LogInformation("Filtering by Skill category: {Skill}", request.Skill);
+                query = query.Where(o => o.Skill.CategoryCode == request.Skill);
+            }
+
+            if (request.SkillId.HasValue)
+            {
+                _logger.LogInformation("Filtering by SkillId: {SkillId}", request.SkillId);
+                query = query.Where(o => o.SkillId == request.SkillId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Q))
+            {
+                var keyword = request.Q.ToLower();
+                _logger.LogInformation("Applying search filter with keyword: '{Keyword}'", keyword);
+                query = query.Where(o =>
+                    o.Title.ToLower().Contains(keyword) ||
+                    (o.Description != null && o.Description.ToLower().Contains(keyword))
+                );
+            }
+
+            var total = await query.CountAsync();
+            _logger.LogInformation("Found {Total} offers for user {UserId}", total, userId);
+
+            var offers = await query
+                .OrderByDescending(o => o.CreatedAt)
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync();
+
+            var offerResponses = offers.Select(o => MapToOfferResponse(o)).ToList();
+
+            return new PaginatedResponse<OfferResponse>
+            {
+                Items = offerResponses,
+                Page = request.Page,
+                PageSize = request.PageSize,
+                Total = total
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving offers for user {UserId} with filters: {@Request}", userId, request);
             throw;
         }
     }
