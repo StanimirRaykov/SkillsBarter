@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
 using SkillsBarter.Services;
@@ -35,7 +37,7 @@ public class DeliverablesController : ControllerBase
                 .SelectMany(v => v.Errors)
                 .Select(e => e.ErrorMessage)
                 .ToList();
-            var message = errors.Any() ? string.Join(" ", errors) : "Invalid request";
+            var message = errors.Any() ? string.Join(" ", errors) : "Invalid request. Please correct the highlighted fields.";
             return BadRequest(new { message, errors = ModelState });
         }
 
@@ -45,13 +47,26 @@ public class DeliverablesController : ControllerBase
             return Unauthorized(new { message = "User not authenticated" });
         }
 
-        var result = await _deliverableService.SubmitDeliverableAsync(request, user.Id);
-        if (result == null)
+        try
         {
-            return BadRequest(new { message = "Failed to submit deliverable. Ensure the agreement exists, is in progress, and you haven't already submitted." });
+            var result = await _deliverableService.SubmitDeliverableAsync(request, user.Id);
+            return CreatedAtAction(nameof(GetDeliverable), new { id = result!.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogError(ex, "Database error submitting deliverable");
+            return BadRequest(new { message = "Could not submit deliverable due to a data constraint. Please check for existing submissions for this agreement." });
         }
 
-        return CreatedAtAction(nameof(GetDeliverable), new { id = result.Id }, result);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error submitting deliverable");
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Unexpected error submitting deliverable." });
+        }
     }
 
     [HttpGet("{id:guid}")]
@@ -99,13 +114,21 @@ public class DeliverablesController : ControllerBase
             return Unauthorized(new { message = "User not authenticated" });
         }
 
-        var result = await _deliverableService.ApproveDeliverableAsync(id, user.Id);
-        if (result == null)
+        try
         {
-            return BadRequest(new { message = "Failed to approve. Ensure the deliverable exists, is submitted, and you're the other party." });
+            var result = await _deliverableService.ApproveDeliverableAsync(id, user.Id);
+            return Ok(new { message = "Deliverable approved", deliverable = result });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error approving deliverable {DeliverableId}", id);
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Unexpected error approving deliverable." });
         }
 
-        return Ok(new { message = "Deliverable approved", deliverable = result });
     }
 
     [HttpPost("{id:guid}/request-revision")]
@@ -127,13 +150,21 @@ public class DeliverablesController : ControllerBase
             return Unauthorized(new { message = "User not authenticated" });
         }
 
-        var result = await _deliverableService.RequestRevisionAsync(id, request, user.Id);
-        if (result == null)
+        try
         {
-            return BadRequest(new { message = "Failed to request revision. Ensure the deliverable exists, is submitted, and you're the other party." });
+            var result = await _deliverableService.RequestRevisionAsync(id, request, user.Id);
+            return Ok(new { message = "Revision requested", deliverable = result });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error requesting revision for deliverable {DeliverableId}", id);
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Unexpected error requesting revision." });
         }
 
-        return Ok(new { message = "Revision requested", deliverable = result });
     }
 
     [HttpPut("{id:guid}/resubmit")]
@@ -155,12 +186,20 @@ public class DeliverablesController : ControllerBase
             return Unauthorized(new { message = "User not authenticated" });
         }
 
-        var result = await _deliverableService.ResubmitDeliverableAsync(id, request, user.Id);
-        if (result == null)
+        try
         {
-            return BadRequest(new { message = "Failed to resubmit. Ensure the deliverable exists, revision was requested, and you're the submitter." });
+            var result = await _deliverableService.ResubmitDeliverableAsync(id, request, user.Id);
+            return Ok(new { message = "Deliverable resubmitted", deliverable = result });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error resubmitting deliverable {DeliverableId}", id);
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Unexpected error resubmitting deliverable." });
         }
 
-        return Ok(new { message = "Deliverable resubmitted", deliverable = result });
     }
 }

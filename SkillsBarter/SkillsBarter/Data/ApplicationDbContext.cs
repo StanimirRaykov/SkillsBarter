@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SkillsBarter.Models;
 
 namespace SkillsBarter.Data;
@@ -734,7 +735,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.HasIndex(e => e.AgreementId);
             entity.HasIndex(e => e.SubmittedById);
-            entity.HasIndex(e => new { e.AgreementId, e.SubmittedById }).IsUnique();
+            entity.HasIndex(e => new { e.AgreementId, e.MilestoneId }).IsUnique();
         });
 
         modelBuilder.Entity<Penalty>(entity =>
@@ -790,5 +791,34 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.HasIndex(e => e.AgreementId);
             entity.HasIndex(e => e.Status);
         });
+
+        // Apply UTC DateTime conversion for all DateTime properties
+        // This ensures PostgreSQL timestamp with time zone columns work correctly
+        var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
+            v => v.Kind == DateTimeKind.Unspecified ? DateTime.SpecifyKind(v, DateTimeKind.Utc) : v.ToUniversalTime(),
+            v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+        var nullableDateTimeConverter = new ValueConverter<DateTime?, DateTime?>(
+            v => v.HasValue
+                ? (v.Value.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc)
+                    : v.Value.ToUniversalTime())
+                : v,
+            v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v);
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            foreach (var property in entityType.GetProperties())
+            {
+                if (property.ClrType == typeof(DateTime))
+                {
+                    property.SetValueConverter(dateTimeConverter);
+                }
+                else if (property.ClrType == typeof(DateTime?))
+                {
+                    property.SetValueConverter(nullableDateTimeConverter);
+                }
+            }
+        }
     }
 }
