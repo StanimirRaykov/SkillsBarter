@@ -229,7 +229,7 @@ public class DeliverablesControllerTests
         var response = new AgreementDeliverablesResponse
         {
             AgreementId = agreementId,
-            BothApproved = false
+            AllApproved = false
         };
 
         _deliverableServiceMock.Setup(s => s.GetAgreementDeliverablesAsync(agreementId, _currentUser.Id))

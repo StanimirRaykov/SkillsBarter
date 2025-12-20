@@ -214,7 +214,7 @@ public class DisputeServiceTests
         Assert.Equal(AgreementStatus.Disputed, storedAgreement!.Status);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(respondent.Id, NotificationType.DisputeOpened, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(respondent.Id, NotificationType.DisputeOpened, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -334,7 +334,7 @@ public class DisputeServiceTests
         Assert.Equal(request.Response, messages.First().Body);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(complainer.Id, NotificationType.DisputeResponse, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(complainer.Id, NotificationType.DisputeResponse, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -442,7 +442,7 @@ public class DisputeServiceTests
         Assert.True(result.IsEscalated);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(It.IsAny<Guid>(), NotificationType.DisputeEscalated, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(It.IsAny<Guid>(), NotificationType.DisputeEscalated, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Exactly(2));
     }
 
@@ -802,7 +802,7 @@ public class DisputeServiceTests
         Assert.Equal(respondent.Id, penalties.First().UserId);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(It.IsAny<Guid>(), NotificationType.DisputeResolved, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(It.IsAny<Guid>(), NotificationType.DisputeResolved, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Exactly(2));
     }
 

@@ -122,7 +122,8 @@ public class MilestoneServiceTests
                 It.IsAny<Guid>(),
                 It.Is<string>(t => t == "milestone_completed"),
                 It.IsAny<string>(),
-                It.IsAny<string>()),
+                It.IsAny<string>(),
+                It.IsAny<Guid?>()),
             Times.Exactly(2)
         );
     }

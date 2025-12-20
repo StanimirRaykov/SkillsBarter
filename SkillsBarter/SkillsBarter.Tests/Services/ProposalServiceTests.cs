@@ -192,7 +192,7 @@ public class ProposalServiceTests
         Assert.Equal(ProposalAction.Created, history.First().Action);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(offerOwner.Id, NotificationType.ProposalReceived, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(offerOwner.Id, NotificationType.ProposalReceived, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -338,7 +338,7 @@ public class ProposalServiceTests
         Assert.Null(result.PendingResponseFromUserId);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(proposer.Id, NotificationType.ProposalAccepted, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(proposer.Id, NotificationType.ProposalAccepted, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -380,7 +380,7 @@ public class ProposalServiceTests
         Assert.Equal("Not interested", storedProposal!.DeclineReason);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(proposer.Id, NotificationType.ProposalDeclined, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(proposer.Id, NotificationType.ProposalDeclined, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -424,7 +424,7 @@ public class ProposalServiceTests
         Assert.Equal(proposer.Id, result.PendingResponseFromUserId);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(proposer.Id, NotificationType.ProposalModified, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(proposer.Id, NotificationType.ProposalModified, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -531,7 +531,7 @@ public class ProposalServiceTests
         Assert.Equal(ProposalAction.Withdrawn, history.First().Action);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(offerOwner.Id, NotificationType.ProposalWithdrawn, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(offerOwner.Id, NotificationType.ProposalWithdrawn, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
