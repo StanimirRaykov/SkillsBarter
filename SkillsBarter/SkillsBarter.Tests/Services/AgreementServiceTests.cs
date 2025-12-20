@@ -118,10 +118,10 @@ public class AgreementServiceTests
         Assert.Equal(OfferStatusCode.UnderAgreement, storedOffer!.StatusCode);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(requester.Id, NotificationType.AgreementCreated, "Agreement Created", It.IsAny<string>()),
+            n => n.CreateAsync(requester.Id, NotificationType.AgreementCreated, "Agreement Created", It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(provider.Id, NotificationType.AgreementCreated, "Agreement Created", It.IsAny<string>()),
+            n => n.CreateAsync(provider.Id, NotificationType.AgreementCreated, "Agreement Created", It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -218,7 +218,7 @@ public class AgreementServiceTests
         Assert.Equal(OfferStatusCode.Completed, storedOffer!.StatusCode);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(provider.Id, NotificationType.AgreementCompleted, "Agreement Completed", It.IsAny<string>()),
+            n => n.CreateAsync(provider.Id, NotificationType.AgreementCompleted, "Agreement Completed", It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 

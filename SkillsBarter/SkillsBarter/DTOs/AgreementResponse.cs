@@ -31,6 +31,7 @@ public class AgreementSummaryResponse
     public int TotalMilestones { get; set; }
     public int CompletedMilestones { get; set; }
     public string Role { get; set; } = string.Empty; // "Requester" or "Provider"
+    public bool HasReviewFromMe { get; set; }
 }
 
 public class AgreementListResponse

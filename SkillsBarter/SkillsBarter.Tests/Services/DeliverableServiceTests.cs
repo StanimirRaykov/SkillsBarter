@@ -208,7 +208,7 @@ public class DeliverableServiceTests
         Assert.NotNull(storedDeliverable);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(provider.Id, NotificationType.DeliverableSubmitted, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(provider.Id, NotificationType.DeliverableSubmitted, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -294,7 +294,7 @@ public class DeliverableServiceTests
         Assert.NotNull(result.ApprovedAt);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(requester.Id, NotificationType.DeliverableApproved, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(requester.Id, NotificationType.DeliverableApproved, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -406,7 +406,7 @@ public class DeliverableServiceTests
         Assert.Equal(1, result.RevisionCount);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(requester.Id, NotificationType.RevisionRequested, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(requester.Id, NotificationType.RevisionRequested, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -523,7 +523,7 @@ public class DeliverableServiceTests
         Assert.Null(result.RevisionReason);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(provider.Id, NotificationType.DeliverableSubmitted, It.IsAny<string>(), It.IsAny<string>()),
+            n => n.CreateAsync(provider.Id, NotificationType.DeliverableSubmitted, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 
@@ -613,10 +613,35 @@ public class DeliverableServiceTests
     {
         var (requester, provider, agreement) = await SeedAgreementAsync();
 
+        var milestone1 = new Milestone
+        {
+            Id = Guid.NewGuid(),
+            AgreementId = agreement.Id,
+            Title = "Milestone 1",
+            DurationInDays = 7,
+            ResponsibleUserId = requester.Id,
+            Status = MilestoneStatus.InProgress,
+            ResponsibleUser = requester
+        };
+
+        var milestone2 = new Milestone
+        {
+            Id = Guid.NewGuid(),
+            AgreementId = agreement.Id,
+            Title = "Milestone 2",
+            DurationInDays = 7,
+            ResponsibleUserId = provider.Id,
+            Status = MilestoneStatus.InProgress,
+            ResponsibleUser = provider
+        };
+
+        _context.Milestones.AddRange(milestone1, milestone2);
+
         var requesterDeliverable = new Deliverable
         {
             Id = Guid.NewGuid(),
             AgreementId = agreement.Id,
+            MilestoneId = milestone1.Id,
             SubmittedById = requester.Id,
             Link = "http://requester.com",
             Description = "Requester deliverable",
@@ -628,6 +653,7 @@ public class DeliverableServiceTests
         {
             Id = Guid.NewGuid(),
             AgreementId = agreement.Id,
+            MilestoneId = milestone2.Id,
             SubmittedById = provider.Id,
             Link = "http://provider.com",
             Description = "Provider deliverable",
@@ -642,9 +668,10 @@ public class DeliverableServiceTests
 
         Assert.NotNull(result);
         Assert.Equal(agreement.Id, result!.AgreementId);
-        Assert.NotNull(result.RequesterDeliverable);
-        Assert.NotNull(result.ProviderDeliverable);
-        Assert.False(result.BothApproved);
+        Assert.Equal(2, result.Milestones.Count);
+        Assert.NotNull(result.Milestones[0].Deliverable);
+        Assert.NotNull(result.Milestones[1].Deliverable);
+        Assert.False(result.AllApproved);
     }
 
     [Fact]
@@ -652,10 +679,35 @@ public class DeliverableServiceTests
     {
         var (requester, provider, agreement) = await SeedAgreementAsync();
 
+        var milestone1 = new Milestone
+        {
+            Id = Guid.NewGuid(),
+            AgreementId = agreement.Id,
+            Title = "Milestone 1",
+            DurationInDays = 7,
+            ResponsibleUserId = requester.Id,
+            Status = MilestoneStatus.InProgress,
+            ResponsibleUser = requester
+        };
+
+        var milestone2 = new Milestone
+        {
+            Id = Guid.NewGuid(),
+            AgreementId = agreement.Id,
+            Title = "Milestone 2",
+            DurationInDays = 7,
+            ResponsibleUserId = provider.Id,
+            Status = MilestoneStatus.InProgress,
+            ResponsibleUser = provider
+        };
+
+        _context.Milestones.AddRange(milestone1, milestone2);
+
         var requesterDeliverable = new Deliverable
         {
             Id = Guid.NewGuid(),
             AgreementId = agreement.Id,
+            MilestoneId = milestone1.Id,
             SubmittedById = requester.Id,
             Link = "http://requester.com",
             Description = "Requester deliverable",
@@ -667,6 +719,7 @@ public class DeliverableServiceTests
         {
             Id = Guid.NewGuid(),
             AgreementId = agreement.Id,
+            MilestoneId = milestone2.Id,
             SubmittedById = provider.Id,
             Link = "http://provider.com",
             Description = "Provider deliverable",
@@ -680,6 +733,6 @@ public class DeliverableServiceTests
         var result = await _deliverableService.GetAgreementDeliverablesAsync(agreement.Id, requester.Id);
 
         Assert.NotNull(result);
-        Assert.True(result!.BothApproved);
+        Assert.True(result!.AllApproved);
     }
 }

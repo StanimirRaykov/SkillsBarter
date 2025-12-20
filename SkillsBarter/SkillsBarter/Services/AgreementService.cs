@@ -354,6 +354,7 @@ public class AgreementService : IAgreementService
                 .Include(a => a.Offer)
                     .ThenInclude(o => o.Skill)
                 .Include(a => a.Milestones)
+                .Include(a => a.Reviews)
                 .Where(a => a.RequesterId == userId || a.ProviderId == userId);
 
             if (status.HasValue)
@@ -384,7 +385,8 @@ public class AgreementService : IAgreementService
                 CompletedAt = a.CompletedAt,
                 TotalMilestones = a.Milestones.Count,
                 CompletedMilestones = a.Milestones.Count(m => m.Status == MilestoneStatus.Completed),
-                Role = a.RequesterId == userId ? "Requester" : "Provider"
+                Role = a.RequesterId == userId ? "Requester" : "Provider",
+                HasReviewFromMe = a.Reviews.Any(r => r.ReviewerId == userId)
             }).ToList();
 
             return new AgreementListResponse
