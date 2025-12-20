@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
+using SkillsBarter.Constants;
 
 namespace SkillsBarter.Services;
 
@@ -283,6 +284,40 @@ public class UserService : IUserService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating profile for user {UserId}", userId);
+            throw;
+        }
+    }
+
+    public async Task<bool> ActivatePremiumAsync(Guid userId, string subscriptionId)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(subscriptionId))
+            {
+                _logger.LogWarning("Invalid subscription ID provided for user {UserId}", userId);
+                return false;
+            }
+
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+            {
+                _logger.LogWarning("User not found with ID: {UserId}", userId);
+                return false;
+            }
+
+            var result = await _userManager.AddToRoleAsync(user, AppRoles.Premium);
+            if (!result.Succeeded)
+            {
+                _logger.LogError("Failed to add Premium role to user {UserId}: {Errors}", userId, string.Join(", ", result.Errors.Select(e => e.Description)));
+                return false;
+            }
+
+            _logger.LogInformation("Activated Premium for user {UserId} with subscription {SubscriptionId}", userId, subscriptionId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error activating premium for user {UserId}", userId);
             throw;
         }
     }
