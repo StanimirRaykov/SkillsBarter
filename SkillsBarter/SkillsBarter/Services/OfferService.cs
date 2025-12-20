@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SkillsBarter.Constants;
 using SkillsBarter.Data;
@@ -11,21 +12,31 @@ public class OfferService : IOfferService
     private readonly ApplicationDbContext _dbContext;
     private readonly INotificationService _notificationService;
     private readonly ILogger<OfferService> _logger;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public OfferService(
         ApplicationDbContext dbContext,
         INotificationService notificationService,
-        ILogger<OfferService> logger)
+        ILogger<OfferService> logger,
+        UserManager<ApplicationUser> userManager)
     {
         _dbContext = dbContext;
         _notificationService = notificationService;
         _logger = logger;
+        _userManager = userManager;
     }
 
     public async Task<OfferResponse?> CreateOfferAsync(Guid userId, CreateOfferRequest request)
     {
         try
         {
+            var (isAllowed, _, _) = await CheckOfferCreationCooldownAsync(userId);
+            if (!isAllowed)
+            {
+                _logger.LogWarning("Offer creation denied for user {UserId} due to cooldown", userId);
+                return null;
+            }
+
             if (string.IsNullOrWhiteSpace(request.Title))
             {
                 _logger.LogWarning("Create offer failed: Empty title provided by user {UserId}", userId);
@@ -380,6 +391,90 @@ public class OfferService : IOfferService
             _logger.LogError(ex, "Error deleting offer {OfferId} for user {UserId}", offerId, userId);
             throw;
         }
+    }
+
+    public async Task<(bool IsAllowed, string? ErrorMessage)> CheckOfferCreationAllowedAsync(Guid userId)
+    {
+        var (isAllowed, _, remainingCooldown) = await CheckOfferCreationCooldownAsync(userId);
+
+        if (!isAllowed)
+        {
+            if (remainingCooldown == null)
+            {
+                return (false, "You already have an active offer. Freemium users can only have one offer at a time. Please wait for your current offer to be completed or cancelled before creating a new one. Upgrade to Premium for unlimited offers.");
+            }
+
+            var days = remainingCooldown.Value.Days;
+            var hours = remainingCooldown.Value.Hours;
+            var message = days > 0
+                ? $"You must wait {days} day(s) and {hours} hour(s) before creating another offer. Freemium users can create one new offer per week after their previous offer is completed. Upgrade to Premium for unlimited offers."
+                : $"You must wait {hours} hour(s) before creating another offer. Freemium users can create one new offer per week after their previous offer is completed. Upgrade to Premium for unlimited offers.";
+            return (false, message);
+        }
+
+        return (true, null);
+    }
+
+    private async Task<(bool IsAllowed, DateTime? LastOfferCompletedAt, TimeSpan? RemainingCooldown)> CheckOfferCreationCooldownAsync(Guid userId)
+    {
+        const int COOLDOWN_DAYS = 7;
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user == null)
+        {
+            _logger.LogWarning("User {UserId} not found for cooldown check", userId);
+            return (false, null, null);
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+
+        if (roles.Contains(AppRoles.Premium) ||
+            roles.Contains(AppRoles.Admin) ||
+            roles.Contains(AppRoles.Moderator))
+        {
+            _logger.LogInformation("User {UserId} with role(s) {Roles} bypasses offer creation restrictions",
+                userId, string.Join(", ", roles));
+            return (true, null, null);
+        }
+
+        var hasActiveOffer = await _dbContext.Offers
+            .AnyAsync(o => o.UserId == userId &&
+                          (o.StatusCode == OfferStatusCode.Active ||
+                           o.StatusCode == OfferStatusCode.UnderAgreement ||
+                           o.StatusCode == OfferStatusCode.UnderReview));
+
+        if (hasActiveOffer)
+        {
+            _logger.LogWarning("User {UserId} attempted to create offer but already has an active offer. Freemium users can only have one offer at a time", userId);
+            return (false, null, null);
+        }
+
+        var lastCompletedOffer = await _dbContext.Offers
+            .Where(o => o.UserId == userId && o.StatusCode == OfferStatusCode.Completed)
+            .OrderByDescending(o => o.UpdatedAt)
+            .FirstOrDefaultAsync();
+
+        if (lastCompletedOffer == null)
+        {
+            _logger.LogInformation("User {UserId} has no completed offers, allowing offer creation", userId);
+            return (true, null, null);
+        }
+
+        var timeSinceLastCompletion = DateTime.UtcNow - lastCompletedOffer.UpdatedAt;
+        var cooldownPeriod = TimeSpan.FromDays(COOLDOWN_DAYS);
+
+        if (timeSinceLastCompletion < cooldownPeriod)
+        {
+            var remainingCooldown = cooldownPeriod - timeSinceLastCompletion;
+            _logger.LogWarning(
+                "User {UserId} attempted to create offer during cooldown. Last offer completed: {LastCompletionDate}, Remaining cooldown: {RemainingDays} days, {RemainingHours} hours",
+                userId, lastCompletedOffer.UpdatedAt, remainingCooldown.Days, remainingCooldown.Hours);
+            return (false, lastCompletedOffer.UpdatedAt, remainingCooldown);
+        }
+
+        _logger.LogInformation("User {UserId} passed cooldown check. Last offer completed {Days} days ago",
+            userId, timeSinceLastCompletion.Days);
+        return (true, lastCompletedOffer.UpdatedAt, null);
     }
 
     private OfferResponse MapToOfferResponse(Offer offer)
