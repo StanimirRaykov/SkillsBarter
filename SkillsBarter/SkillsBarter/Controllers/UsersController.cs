@@ -376,4 +376,30 @@ public class UsersController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while updating your profile" });
         }
     }
+    [HttpPost("premium")]
+    [Authorize]
+    public async Task<IActionResult> ActivatePremium([FromBody] ActivatePremiumRequest request)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "Invalid user authentication" });
+            }
+
+            var success = await _userService.ActivatePremiumAsync(userId, request.SubscriptionId);
+            if (!success)
+            {
+                return BadRequest(new { message = "Failed to activate premium. Please check your subscription details." });
+            }
+
+            return Ok(new { message = "Premium activated successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing premium activation for user");
+            return StatusCode(500, new { message = "An error occurred while activating premium" });
+        }
+    }
 }
