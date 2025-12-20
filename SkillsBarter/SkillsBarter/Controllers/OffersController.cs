@@ -100,6 +100,34 @@ public class OffersController : ControllerBase
         }
     }
 
+    [HttpGet("cooldown")]
+    [Authorize]
+    public async Task<IActionResult> GetOfferCreationCooldown()
+    {
+        try
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                _logger.LogWarning("Authenticated user not found");
+                return Unauthorized(new { message = "User not found" });
+            }
+
+            var (isAllowed, message) = await _offerService.CheckOfferCreationAllowedAsync(user.Id);
+
+            return Ok(new
+            {
+                isAllowed,
+                message = isAllowed ? "You are eligible to create a new offer." : message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking offer cooldown");
+            return StatusCode(500, new { message = "An error occurred while checking offer availability" });
+        }
+    }
+
     [HttpPost]
     [Authorize]
     public async Task<IActionResult> CreateOffer([FromBody] CreateOfferRequest request)
@@ -117,6 +145,13 @@ public class OffersController : ControllerBase
             {
                 _logger.LogWarning("Authenticated user not found");
                 return Unauthorized(new { message = "User not found" });
+            }
+
+            var (isAllowed, cooldownError) = await _offerService.CheckOfferCreationAllowedAsync(user.Id);
+            if (!isAllowed)
+            {
+                _logger.LogWarning("Offer creation blocked for user {UserId}: {Reason}", user.Id, cooldownError);
+                return BadRequest(new { message = cooldownError });
             }
 
             var offerResponse = await _offerService.CreateOfferAsync(user.Id, request);
@@ -160,7 +195,7 @@ public class OffersController : ControllerBase
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var isAdmin = await _userManager.IsInRoleAsync(user, Constants.AppRoles.Admin) || 
+            var isAdmin = await _userManager.IsInRoleAsync(user, Constants.AppRoles.Admin) ||
                           await _userManager.IsInRoleAsync(user, Constants.AppRoles.Moderator);
 
             var offerResponse = await _offerService.UpdateOfferAsync(id, user.Id, request, isAdmin);
@@ -199,7 +234,7 @@ public class OffersController : ControllerBase
                 return Unauthorized(new { message = "User not found" });
             }
 
-            var isAdmin = await _userManager.IsInRoleAsync(user, Constants.AppRoles.Admin) || 
+            var isAdmin = await _userManager.IsInRoleAsync(user, Constants.AppRoles.Admin) ||
                           await _userManager.IsInRoleAsync(user, Constants.AppRoles.Moderator);
 
             var success = await _offerService.DeleteOfferAsync(id, user.Id, isAdmin);
