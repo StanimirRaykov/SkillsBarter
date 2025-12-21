@@ -248,8 +248,8 @@ public class OfferService : IOfferService
             if (offer.StatusCode != OfferStatusCode.Active)
             {
                 var canView = false;
-                
-                if (offer.StatusCode == OfferStatusCode.Completed || offer.StatusCode == OfferStatusCode.Cancelled)
+
+                if (offer.StatusCode == OfferStatusCode.Completed)
                 {
                     canView = true;
                 }
@@ -261,10 +261,10 @@ public class OfferService : IOfferService
                     }
                     else
                     {
-                        var isParticipant = offer.Agreements.Any(a => 
+                        var isParticipant = offer.Agreements.Any(a =>
                             (a.RequesterId == userId.Value || a.ProviderId == userId.Value) &&
                             (a.Status == AgreementStatus.Completed));
-                        
+
                         if (isParticipant)
                         {
                             canView = true;

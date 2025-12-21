@@ -173,7 +173,16 @@ public class ProposalServiceTests
             Terms = "Test terms content",
             ProposerOffer = "Test proposer offer",
             Deadline = DateTime.UtcNow.AddDays(7),
-            Message = "Initial message"
+            Message = "Initial message",
+            Milestones = new List<CreateMilestoneRequest>
+            {
+                new CreateMilestoneRequest
+                {
+                    Title = "Milestone 1",
+                    DurationInDays = 7,
+                    DueAt = DateTime.UtcNow.AddDays(7)
+                }
+            }
         };
 
         var result = await _proposalService.CreateProposalAsync(request, proposer.Id);
@@ -325,10 +334,22 @@ public class ProposalServiceTests
 
         var agreementId = Guid.NewGuid();
         _agreementServiceMock.Setup(a => a.CreateAgreementAsync(
-                offer.Id, proposer.Id, offerOwner.Id, proposal.Terms, null))
+                offer.Id, proposer.Id, offerOwner.Id, proposal.Terms, It.IsAny<List<CreateMilestoneRequest>>()))
             .ReturnsAsync(new AgreementResponse { Id = agreementId });
 
-        var request = new RespondToProposalRequest { Action = ProposalResponseAction.Accept };
+        var request = new RespondToProposalRequest
+        {
+            Action = ProposalResponseAction.Accept,
+            Milestones = new List<CreateMilestoneRequest>
+            {
+                new CreateMilestoneRequest
+                {
+                    Title = "Milestone 1",
+                    DurationInDays = 7,
+                    DueAt = DateTime.UtcNow.AddDays(7)
+                }
+            }
+        };
 
         var result = await _proposalService.RespondToProposalAsync(proposal.Id, request, offerOwner.Id);
 
