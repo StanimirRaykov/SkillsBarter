@@ -80,6 +80,7 @@ public class ProposalResponse
     public DateTime CreatedAt { get; set; }
     public DateTime? AcceptedAt { get; set; }
     public Guid? AgreementId { get; set; }
+    public List<CreateMilestoneRequest> Milestones { get; set; } = new();
 }
 
 public class ProposalDetailResponse : ProposalResponse
