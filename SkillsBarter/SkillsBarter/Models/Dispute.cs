@@ -12,6 +12,9 @@ public class Dispute
     public string Description { get; set; } = string.Empty;
     public DisputeStatus Status { get; set; } = DisputeStatus.Open;
     public DisputeResolution Resolution { get; set; } = DisputeResolution.None;
+    public DisputeSystemDecision SystemDecision { get; set; } = DisputeSystemDecision.EscalateToModerator;
+    public DisputePartyDecision ComplainerDecision { get; set; } = DisputePartyDecision.Pending;
+    public DisputePartyDecision RespondentDecision { get; set; } = DisputePartyDecision.Pending;
 
     public int Score { get; set; }
     public bool ComplainerDelivered { get; set; }
