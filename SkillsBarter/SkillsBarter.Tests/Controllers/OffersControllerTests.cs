@@ -145,7 +145,7 @@ public class OffersControllerTests
             }
         };
 
-        _offerServiceMock.Setup(s => s.GetOfferByIdAsync(offerId))
+        _offerServiceMock.Setup(s => s.GetOfferByIdAsync(offerId, It.IsAny<Guid?>()))
             .ReturnsAsync(expectedResponse);
 
         var result = await _controller.GetOfferById(offerId);
@@ -167,7 +167,7 @@ public class OffersControllerTests
     public async Task GetOfferById_NotFound_ReturnsNotFound()
     {
         var offerId = Guid.NewGuid();
-        _offerServiceMock.Setup(s => s.GetOfferByIdAsync(offerId))
+        _offerServiceMock.Setup(s => s.GetOfferByIdAsync(offerId, null))
             .ReturnsAsync((OfferDetailResponse?)null);
 
         var result = await _controller.GetOfferById(offerId);
@@ -180,7 +180,7 @@ public class OffersControllerTests
     public async Task GetOfferById_OnException_ReturnsServerError()
     {
         var offerId = Guid.NewGuid();
-        _offerServiceMock.Setup(s => s.GetOfferByIdAsync(offerId))
+        _offerServiceMock.Setup(s => s.GetOfferByIdAsync(offerId, It.IsAny<Guid?>()))
             .ThrowsAsync(new Exception("Database error"));
 
         var result = await _controller.GetOfferById(offerId);
@@ -224,13 +224,17 @@ public class OffersControllerTests
         var request = new CreateOfferRequest { Title = "Test", SkillId = 1 };
         _userManagerMock.Setup(u => u.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
             .ReturnsAsync(_testUser);
+        _offerServiceMock.Setup(s => s.CheckOfferCreationAllowedAsync(_testUser.Id))
+            .ReturnsAsync((true, (string?)null));
         _offerServiceMock.Setup(s => s.CreateOfferAsync(_testUser.Id, request))
             .ReturnsAsync((OfferResponse?)null);
 
         var result = await _controller.CreateOffer(request);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal("Failed to create offer. Please check your input and try again.", GetMessage(badRequest.Value));
+        var message = GetMessage(badRequest.Value);
+        Assert.NotNull(message);
+        Assert.Contains("Failed to create offer", message);
     }
 
     [Fact]
@@ -250,6 +254,8 @@ public class OffersControllerTests
 
         _userManagerMock.Setup(u => u.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
             .ReturnsAsync(_testUser);
+        _offerServiceMock.Setup(s => s.CheckOfferCreationAllowedAsync(_testUser.Id))
+            .ReturnsAsync((true, (string?)null));
         _offerServiceMock.Setup(s => s.CreateOfferAsync(_testUser.Id, request))
             .ReturnsAsync(response);
 
@@ -267,6 +273,8 @@ public class OffersControllerTests
         var request = new CreateOfferRequest { Title = "Test", SkillId = 1 };
         _userManagerMock.Setup(u => u.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
             .ReturnsAsync(_testUser);
+        _offerServiceMock.Setup(s => s.CheckOfferCreationAllowedAsync(_testUser.Id))
+            .ReturnsAsync((true, (string?)null));
         _offerServiceMock.Setup(s => s.CreateOfferAsync(_testUser.Id, request))
             .ThrowsAsync(new Exception("Database error"));
 

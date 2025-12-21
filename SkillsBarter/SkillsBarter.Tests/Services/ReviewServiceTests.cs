@@ -444,11 +444,13 @@ public class ReviewServiceTests
         var agreement = new Agreement
         {
             Id = Guid.NewGuid(),
-            RequesterId = recipient.Id,
-            ProviderId = reviewer.Id,
+            RequesterId = reviewer.Id,
+            ProviderId = recipient.Id,
             OfferId = Guid.NewGuid(),
             Status = AgreementStatus.Completed,
-            CompletedAt = DateTime.UtcNow
+            CompletedAt = DateTime.UtcNow,
+            Requester = reviewer,
+            Provider = recipient
         };
         _context.Agreements.Add(agreement);
         await _context.SaveChangesAsync();

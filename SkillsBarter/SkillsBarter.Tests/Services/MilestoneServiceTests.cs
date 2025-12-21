@@ -184,7 +184,9 @@ public class MilestoneServiceTests
             Title = "Test Milestone",
             DurationInDays = 7,
             Status = MilestoneStatus.Pending,
-            DueAt = DateTime.UtcNow.AddDays(7)
+            DueAt = DateTime.UtcNow.AddDays(7),
+            ResponsibleUserId = provider.Id,
+            ResponsibleUser = provider
         };
         _context.Milestones.Add(milestone);
 

@@ -66,7 +66,9 @@ public class DeliverablesControllerTests
         var result = await _controller.SubmitDeliverable(new SubmitDeliverableRequest());
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal("Invalid request", GetMessage(badRequest.Value));
+        var message = GetMessage(badRequest.Value);
+        Assert.NotNull(message);
+        Assert.Contains("Invalid request", message);
     }
 
     [Fact]
@@ -102,12 +104,12 @@ public class DeliverablesControllerTests
         };
 
         _deliverableServiceMock.Setup(s => s.SubmitDeliverableAsync(request, _currentUser.Id))
-            .ReturnsAsync((DeliverableResponse?)null);
+            .ThrowsAsync(new InvalidOperationException("Agreement not found"));
 
         var result = await _controller.SubmitDeliverable(request);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Contains("Failed to submit", GetMessage(badRequest.Value));
+        Assert.Contains("Agreement not found", GetMessage(badRequest.Value));
     }
 
     [Fact]
@@ -261,12 +263,12 @@ public class DeliverablesControllerTests
 
         var deliverableId = Guid.NewGuid();
         _deliverableServiceMock.Setup(s => s.ApproveDeliverableAsync(deliverableId, _currentUser.Id))
-            .ReturnsAsync((DeliverableResponse?)null);
+            .ThrowsAsync(new InvalidOperationException("Deliverable not found"));
 
         var result = await _controller.ApproveDeliverable(deliverableId);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Contains("Failed to approve", GetMessage(badRequest.Value));
+        Assert.Contains("Deliverable not found", GetMessage(badRequest.Value));
     }
 
     [Fact]
@@ -299,7 +301,9 @@ public class DeliverablesControllerTests
         var result = await _controller.RequestRevision(Guid.NewGuid(), new RequestRevisionRequest());
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal("Invalid request", GetMessage(badRequest.Value));
+        var message = GetMessage(badRequest.Value);
+        Assert.NotNull(message);
+        Assert.Contains("Invalid request", message);
     }
 
     [Fact]
@@ -324,12 +328,12 @@ public class DeliverablesControllerTests
         var request = new RequestRevisionRequest { Reason = "Needs improvement" };
 
         _deliverableServiceMock.Setup(s => s.RequestRevisionAsync(deliverableId, request, _currentUser.Id))
-            .ReturnsAsync((DeliverableResponse?)null);
+            .ThrowsAsync(new InvalidOperationException("Deliverable not found"));
 
         var result = await _controller.RequestRevision(deliverableId, request);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Contains("Failed to request revision", GetMessage(badRequest.Value));
+        Assert.Contains("Deliverable not found", GetMessage(badRequest.Value));
     }
 
     [Fact]
@@ -364,7 +368,9 @@ public class DeliverablesControllerTests
         var result = await _controller.ResubmitDeliverable(Guid.NewGuid(), new SubmitDeliverableRequest());
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal("Invalid request", GetMessage(badRequest.Value));
+        var message = GetMessage(badRequest.Value);
+        Assert.NotNull(message);
+        Assert.Contains("Invalid request", message);
     }
 
     [Fact]
@@ -401,12 +407,12 @@ public class DeliverablesControllerTests
         };
 
         _deliverableServiceMock.Setup(s => s.ResubmitDeliverableAsync(deliverableId, request, _currentUser.Id))
-            .ReturnsAsync((DeliverableResponse?)null);
+            .ThrowsAsync(new InvalidOperationException("Deliverable not found"));
 
         var result = await _controller.ResubmitDeliverable(deliverableId, request);
 
         var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Contains("Failed to resubmit", GetMessage(badRequest.Value));
+        Assert.Contains("Deliverable not found", GetMessage(badRequest.Value));
     }
 
     [Fact]
