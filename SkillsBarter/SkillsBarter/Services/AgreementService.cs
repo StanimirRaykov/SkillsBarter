@@ -90,6 +90,16 @@ public class AgreementService : IAgreementService
                 return null;
             }
 
+            if (requesterId == offer.UserId)
+            {
+                _logger.LogWarning(
+                    "Create agreement failed: User {UserId} cannot request their own offer {OfferId}",
+                    requesterId,
+                    offerId
+                );
+                return null;
+            }
+
             if (offer.UserId != requesterId && offer.UserId != providerId)
             {
                 _logger.LogWarning(

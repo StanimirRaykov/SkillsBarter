@@ -403,6 +403,19 @@ public class ProposalService : IProposalService
             proposal.Deadline = request.Deadline.Value;
         }
 
+        if (request.Milestones != null && request.Milestones.Any())
+        {
+            foreach (var milestone in request.Milestones)
+            {
+                if (milestone.ResponsibleUserId == Guid.Empty)
+                {
+                    milestone.ResponsibleUserId = responderId;
+                }
+
+            }
+            proposal.ProposedMilestones = JsonSerializer.Serialize(request.Milestones);
+        }
+
         proposal.ModificationCount++;
         proposal.LastModifiedByUserId = responderId;
         proposal.LastModifiedAt = DateTime.UtcNow;
@@ -739,6 +752,9 @@ public class ProposalService : IProposalService
             CreatedAt = proposal.CreatedAt,
             AcceptedAt = proposal.AcceptedAt,
             AgreementId = proposal.AgreementId,
+            Milestones = !string.IsNullOrEmpty(proposal.ProposedMilestones)
+                ? JsonSerializer.Deserialize<List<CreateMilestoneRequest>>(proposal.ProposedMilestones) ?? new List<CreateMilestoneRequest>()
+                : new List<CreateMilestoneRequest>()
         };
     }
 
