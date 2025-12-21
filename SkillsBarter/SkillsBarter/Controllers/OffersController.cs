@@ -83,7 +83,10 @@ public class OffersController : ControllerBase
                 return BadRequest(new { message = "Invalid offer ID" });
             }
 
-            var offer = await _offerService.GetOfferByIdAsync(id);
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            Guid? userId = userIdClaim != null ? Guid.Parse(userIdClaim) : null;
+
+            var offer = await _offerService.GetOfferByIdAsync(id, userId);
 
             if (offer == null)
             {
