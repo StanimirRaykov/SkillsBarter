@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -13,6 +14,7 @@ public class OfferServiceTests
 {
     private readonly Mock<ILogger<OfferService>> _mockLogger;
     private readonly Mock<INotificationService> _mockNotificationService;
+    private readonly Mock<UserManager<ApplicationUser>> _mockUserManager;
     private ApplicationDbContext _context = null!;
     private OfferService _offerService = null!;
 
@@ -20,6 +22,9 @@ public class OfferServiceTests
     {
         _mockLogger = new Mock<ILogger<OfferService>>();
         _mockNotificationService = new Mock<INotificationService>();
+        _mockUserManager = new Mock<UserManager<ApplicationUser>>(
+            Mock.Of<IUserStore<ApplicationUser>>(),
+            null, null, null, null, null, null, null, null);
         SetupInMemoryDatabase();
     }
 
@@ -30,7 +35,7 @@ public class OfferServiceTests
             .Options;
 
         _context = new ApplicationDbContext(options);
-        _offerService = new OfferService(_context, _mockNotificationService.Object, _mockLogger.Object);
+        _offerService = new OfferService(_context, _mockNotificationService.Object, _mockLogger.Object, _mockUserManager.Object);
     }
 
     private async Task<(ApplicationUser user, Skill skill)> SetupTestDataAsync()
@@ -57,6 +62,11 @@ public class OfferServiceTests
         _context.OfferStatuses.Add(cancelledStatus);
 
         await _context.SaveChangesAsync();
+
+        _mockUserManager.Setup(um => um.FindByIdAsync(user.Id.ToString()))
+            .ReturnsAsync(user);
+        _mockUserManager.Setup(um => um.GetRolesAsync(user))
+            .ReturnsAsync(new List<string> { "Premium" });
 
         return (user, skill);
     }
@@ -709,7 +719,7 @@ public class OfferServiceTests
             Title = "Original Title",
             Description = "Description",
             StatusCode = OfferStatusCode.Active
-        }; 
+        };
         _context.Offers.Add(offer);
         await _context.SaveChangesAsync();
 
@@ -990,5 +1000,5 @@ public class OfferServiceTests
         Assert.True(deletedOffer!.UpdatedAt > originalTime);
     }
 
-    
+
 }

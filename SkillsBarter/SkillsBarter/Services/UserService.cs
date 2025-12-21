@@ -31,7 +31,7 @@ public class UserService : IUserService
                 .Include(u => u.UserSkills)
                     .ThenInclude(us => us.Skill)
                         .ThenInclude(s => s.Category)
-                .Include(u => u.Offers.Where(o => o.StatusCode == OfferStatusCode.Active))
+                .Include(u => u.Offers.Where(o => o.StatusCode == OfferStatusCode.Active || o.StatusCode == OfferStatusCode.Completed))
                     .ThenInclude(o => o.Skill)
                 .Include(u => u.ReviewsReceived)
                 .FirstOrDefaultAsync(u => u.Id == userId);
@@ -124,7 +124,7 @@ public class UserService : IUserService
                 .Include(u => u.UserSkills)
                     .ThenInclude(us => us.Skill)
                         .ThenInclude(s => s.Category)
-                .Include(u => u.Offers.Where(o => o.StatusCode == OfferStatusCode.Active))
+                .Include(u => u.Offers.Where(o => o.StatusCode == OfferStatusCode.Active || o.StatusCode == OfferStatusCode.Completed))
                     .ThenInclude(o => o.Skill)
                 .Include(u => u.ReviewsReceived)
                 .FirstOrDefaultAsync(u => u.Id == userId);

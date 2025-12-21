@@ -215,7 +215,7 @@ public class OfferService : IOfferService
         }
     }
 
-    public async Task<OfferDetailResponse?> GetOfferByIdAsync(Guid offerId)
+    public async Task<OfferDetailResponse?> GetOfferByIdAsync(Guid offerId, Guid? userId = null)
     {
         try
         {
@@ -223,6 +223,7 @@ public class OfferService : IOfferService
                 .Include(o => o.User)
                 .Include(o => o.Status)
                 .Include(o => o.Skill)
+                .Include(o => o.Agreements)
                 .FirstOrDefaultAsync(o => o.Id == offerId);
 
             if (offer == null)
@@ -233,8 +234,31 @@ public class OfferService : IOfferService
 
             if (offer.StatusCode != OfferStatusCode.Active)
             {
-                _logger.LogInformation("Offer {OfferId} is not active (Status: {Status})", offerId, offer.StatusCode);
-                return null;
+                var canView = false;
+                if (offer.StatusCode == OfferStatusCode.Completed && userId.HasValue)
+                {
+                    if (offer.UserId == userId.Value)
+                    {
+                        canView = true;
+                    }
+                    else
+                    {
+                        var isParticipant = offer.Agreements.Any(a => 
+                            (a.RequesterId == userId.Value || a.ProviderId == userId.Value) &&
+                            (a.Status == AgreementStatus.Completed));
+                        
+                        if (isParticipant)
+                        {
+                            canView = true;
+                        }
+                    }
+                }
+
+                if (!canView)
+                {
+                    _logger.LogInformation("Offer {OfferId} is not active (Status: {Status}) and user {UserId} is not authorized to view it", offerId, offer.StatusCode, userId);
+                    return null;
+                }
             }
 
             if (offer.User == null)
