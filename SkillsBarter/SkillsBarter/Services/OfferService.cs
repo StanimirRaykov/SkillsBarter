@@ -95,8 +95,21 @@ public class OfferService : IOfferService
                 .Include(o => o.Status)
                 .Include(o => o.Skill)
                 .Include(o => o.User)
-                .Where(o => o.StatusCode == OfferStatusCode.Active)
                 .AsQueryable();
+
+            if (request.UserId.HasValue)
+            {
+                query = query.Where(o =>
+                    o.StatusCode == OfferStatusCode.Active ||
+                    o.StatusCode == OfferStatusCode.UnderAgreement ||
+                    o.StatusCode == OfferStatusCode.UnderReview ||
+                    o.StatusCode == OfferStatusCode.Completed ||
+                    o.StatusCode == OfferStatusCode.Cancelled);
+            }
+            else
+            {
+                query = query.Where(o => o.StatusCode == OfferStatusCode.Active);
+            }
 
             if (!string.IsNullOrWhiteSpace(request.Skill))
             {
@@ -235,7 +248,12 @@ public class OfferService : IOfferService
             if (offer.StatusCode != OfferStatusCode.Active)
             {
                 var canView = false;
-                if (offer.StatusCode == OfferStatusCode.Completed && userId.HasValue)
+                
+                if (offer.StatusCode == OfferStatusCode.Completed || offer.StatusCode == OfferStatusCode.Cancelled)
+                {
+                    canView = true;
+                }
+                else if (userId.HasValue)
                 {
                     if (offer.UserId == userId.Value)
                     {
