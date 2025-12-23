@@ -60,6 +60,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity
                 .Property(e => e.EmailVerificationTokenExpiry)
                 .HasColumnName("email_verification_token_expiry");
+            entity.Property(e => e.PasswordResetToken).HasColumnName("password_reset_token");
+            entity
+                .Property(e => e.PasswordResetTokenExpiry)
+                .HasColumnName("password_reset_token_expiry");
+            entity.Property(e => e.RefreshToken).HasColumnName("refresh_token");
+            entity.Property(e => e.RefreshTokenExpiry).HasColumnName("refresh_token_expiry");
             entity
                 .Property(e => e.CreatedAt)
                 .HasColumnName("created_at")

@@ -166,8 +166,15 @@ public class AuthController : ControllerBase
         var roles = await _userManager.GetRolesAsync(user);
 
         var token = _tokenService.GenerateAccessToken(user, roles);
+        var refreshToken = _tokenService.GenerateRefreshToken(user);
 
-        var redirectUrl = $"{frontendUrl}/oauth-callback?success=true&token={Uri.EscapeDataString(token)}";
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userManager.UpdateAsync(user);
+
+        var redirectUrl = $"{frontendUrl}/oauth-callback?success=true&token={Uri.EscapeDataString(token)}&refreshToken={Uri.EscapeDataString(refreshToken)}";
         if (isNewUser)
         {
             redirectUrl += "&newUser=true";
@@ -285,17 +292,27 @@ public class AuthController : ControllerBase
 
             _logger.LogInformation($"User {user.Email} registered successfully with ID: {user.Id}");
 
-            // Getting user roles and generating JWT token
             var roles = await _userManager.GetRolesAsync(user);
             var token = _tokenService.GenerateAccessToken(user, roles);
+            var refreshToken = _tokenService.GenerateRefreshToken(user);
 
-            return Ok(new AuthResponse
-            {
-                Success = true,
-                Message = "User registered successfully. Please check your email to verify your account.",
-                Token = token,
-                User = await MapToUserDto(user)
-            });
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _userManager.UpdateAsync(user);
+
+            return Ok(
+                new AuthResponse
+                {
+                    Success = true,
+                    Message =
+                        "User registered successfully. Please check your email to verify your account.",
+                    Token = token,
+                    RefreshToken = refreshToken,
+                    User = await MapToUserDto(user)
+                }
+            );
         }
         catch (Exception ex)
         {
@@ -303,14 +320,25 @@ public class AuthController : ControllerBase
 
             var roles = await _userManager.GetRolesAsync(user);
             var token = _tokenService.GenerateAccessToken(user, roles);
+            var refreshToken = _tokenService.GenerateRefreshToken(user);
 
-            return Ok(new AuthResponse
-            {
-                Success = true,
-                Message = "User registered successfully. Please check your email to verify your account.",
-                Token = token,
-                User = await MapToUserDto(user)
-            });
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _userManager.UpdateAsync(user);
+
+            return Ok(
+                new AuthResponse
+                {
+                    Success = true,
+                    Message =
+                        "User registered successfully. Please check your email to verify your account.",
+                    Token = token,
+                    RefreshToken = refreshToken,
+                    User = await MapToUserDto(user)
+                }
+            );
         }
     }
 
@@ -345,14 +373,24 @@ public class AuthController : ControllerBase
         var roles = await _userManager.GetRolesAsync(user);
 
         var token = _tokenService.GenerateAccessToken(user, roles);
+        var refreshToken = _tokenService.GenerateRefreshToken(user);
 
-        return Ok(new AuthResponse
-        {
-            Success = true,
-            Message = "Login successful",
-            Token = token,
-            User = await MapToUserDto(user)
-        });
+        user.RefreshToken = refreshToken;
+        user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userManager.UpdateAsync(user);
+
+        return Ok(
+            new AuthResponse
+            {
+                Success = true,
+                Message = "Login successful",
+                Token = token,
+                RefreshToken = refreshToken,
+                User = await MapToUserDto(user)
+            }
+        );
     }
 
     [HttpPost("logout")]
@@ -362,6 +400,70 @@ public class AuthController : ControllerBase
         // With JWT, logout is handled client-side by removing the token
         _logger.LogInformation($"User logged out");
         return Ok(new { success = true, message = "Successfully logged out. Please remove the token from client." });
+    }
+
+    [HttpPost("refresh")]
+    public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new AuthResponse
+            {
+                Success = false,
+                Message = "Invalid request",
+                Errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList()
+            });
+        }
+
+        var (isValid, user) = await _tokenService.ValidateRefreshTokenAsync(
+            request.RefreshToken
+        );
+
+        if (!isValid || user == null)
+        {
+            return Unauthorized(
+                new AuthResponse { Success = false, Message = "Invalid or expired refresh token" }
+            );
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var newAccessToken = _tokenService.GenerateAccessToken(user, roles);
+        var newRefreshToken = _tokenService.GenerateRefreshToken(user);
+
+        user.RefreshToken = newRefreshToken;
+        user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            _logger.LogError($"Failed to update refresh token for user {user.Id}");
+            return StatusCode(
+                500,
+                new AuthResponse
+                {
+                    Success = false,
+                    Message = "Failed to refresh token",
+                    Errors = updateResult.Errors.Select(e => e.Description).ToList()
+                }
+            );
+        }
+
+        _logger.LogInformation($"Token refreshed for user {user.Id}");
+
+        return Ok(
+            new AuthResponse
+            {
+                Success = true,
+                Message = "Token refreshed successfully",
+                Token = newAccessToken,
+                RefreshToken = newRefreshToken,
+                User = await MapToUserDto(user)
+            }
+        );
     }
 
     [HttpGet("profile")]
