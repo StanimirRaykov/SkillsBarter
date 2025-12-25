@@ -30,6 +30,7 @@ public class DisputeService : IDisputeService
         {
             var agreement = await _dbContext.Agreements
                 .Include(a => a.Deliverables)
+                    .ThenInclude(d => d.Milestone)
                 .Include(a => a.Requester)
                 .Include(a => a.Provider)
                 .FirstOrDefaultAsync(a => a.Id == request.AgreementId);
@@ -455,7 +456,7 @@ public class DisputeService : IDisputeService
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync();
 
-        return disputes.Select(d => MapToListResponse(d, userId)).ToList();
+        return disputes.Select(d => MapToListResponse(d, userId, false)).ToList();
     }
 
     public async Task<List<DisputeListResponse>> GetDisputesForModerationAsync(Guid moderatorId)
@@ -474,7 +475,7 @@ public class DisputeService : IDisputeService
             .OrderByDescending(d => d.EscalatedAt)
             .ToListAsync();
 
-        return disputes.Select(d => MapToListResponse(d, moderatorId)).ToList();
+        return disputes.Select(d => MapToListResponse(d, moderatorId, true)).ToList();
     }
 
     public async Task<DisputeResponse?> MakeModeratorDecisionAsync(Guid disputeId, ModeratorDecisionRequest request, Guid moderatorId)
@@ -559,8 +560,11 @@ public class DisputeService : IDisputeService
         var complainerDelivered = complainerDeliverable is not null;
         var respondentDelivered = respondentDeliverable is not null;
 
-        var complainerOnTime = complainerDeliverable is not null && complainerDeliverable.SubmittedAt <= deadline;
-        var respondentOnTime = respondentDeliverable is not null && respondentDeliverable.SubmittedAt <= deadline;
+        var complainerDue = complainerDeliverable?.Milestone?.DueAt ?? deadline;
+        var respondentDue = respondentDeliverable?.Milestone?.DueAt ?? deadline;
+
+        var complainerOnTime = complainerDeliverable is not null && complainerDeliverable.SubmittedAt <= complainerDue;
+        var respondentOnTime = respondentDeliverable is not null && respondentDeliverable.SubmittedAt <= respondentDue;
 
         var complainerApproved = complainerDeliverable?.Status == DeliverableStatus.Approved;
         var respondentApproved = respondentDeliverable?.Status == DeliverableStatus.Approved;
@@ -829,7 +833,7 @@ public class DisputeService : IDisputeService
         };
     }
 
-    private DisputeListResponse MapToListResponse(Dispute dispute, Guid currentUserId)
+    private DisputeListResponse MapToListResponse(Dispute dispute, Guid currentUserId, bool isModeratorView = false)
     {
         return new DisputeListResponse
         {
@@ -843,7 +847,9 @@ public class DisputeService : IDisputeService
             RespondentName = dispute.Respondent?.Name ?? string.Empty,
             CreatedAt = dispute.CreatedAt,
             ResponseDeadline = dispute.ResponseDeadline,
-            RequiresAction = dispute.RespondentId == currentUserId && dispute.Status == DisputeStatus.AwaitingResponse
+            RequiresAction =
+                (dispute.RespondentId == currentUserId && dispute.Status == DisputeStatus.AwaitingResponse) ||
+                (isModeratorView && dispute.Status == DisputeStatus.EscalatedToModerator)
         };
     }
 
