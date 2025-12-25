@@ -6,6 +6,8 @@ public interface IDisputeService
 {
     Task<DisputeResponse?> OpenDisputeAsync(OpenDisputeRequest request, Guid userId);
     Task<DisputeResponse?> RespondToDisputeAsync(Guid disputeId, RespondToDisputeRequest request, Guid userId);
+    Task<DisputeResponse?> AcceptSystemDecisionAsync(Guid disputeId, AcceptDecisionRequest request, Guid userId);
+    Task<DisputeResponse?> EscalateDisputeAsync(Guid disputeId, EscalateDisputeRequest request, Guid userId);
     Task<DisputeResponse?> AddEvidenceAsync(Guid disputeId, EvidenceRequest request, Guid userId);
     Task<DisputeResponse?> GetDisputeByIdAsync(Guid disputeId, Guid userId);
     Task<List<DisputeListResponse>> GetMyDisputesAsync(Guid userId);

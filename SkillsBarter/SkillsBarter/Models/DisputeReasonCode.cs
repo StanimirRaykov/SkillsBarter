@@ -7,5 +7,8 @@ public enum DisputeReasonCode
     QualityIssues,
     DeadlineMissed,
     CommunicationIssues,
-    Other
+    Other,
+    NoDelivery,
+    LateDelivery,
+    PoorQuality
 }

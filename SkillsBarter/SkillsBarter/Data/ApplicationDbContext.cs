@@ -388,6 +388,24 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasConversion<string>()
                 .IsRequired()
                 .HasDefaultValue(DisputeResolution.None);
+            entity
+                .Property(e => e.SystemDecision)
+                .HasColumnName("system_decision")
+                .HasConversion<string>()
+                .IsRequired()
+                .HasDefaultValue(DisputeSystemDecision.EscalateToModerator);
+            entity
+                .Property(e => e.ComplainerDecision)
+                .HasColumnName("complainer_decision")
+                .HasConversion<string>()
+                .IsRequired()
+                .HasDefaultValue(DisputePartyDecision.Pending);
+            entity
+                .Property(e => e.RespondentDecision)
+                .HasColumnName("respondent_decision")
+                .HasConversion<string>()
+                .IsRequired()
+                .HasDefaultValue(DisputePartyDecision.Pending);
             entity.Property(e => e.Score).HasColumnName("score").HasDefaultValue(50);
             entity
                 .Property(e => e.ComplainerDelivered)
