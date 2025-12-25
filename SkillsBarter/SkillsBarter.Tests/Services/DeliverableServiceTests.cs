@@ -113,9 +113,9 @@ public class DeliverableServiceTests
             Description = "Test deliverable"
         };
 
-        var result = await _deliverableService.SubmitDeliverableAsync(request, Guid.NewGuid());
-
-        Assert.Null(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _deliverableService.SubmitDeliverableAsync(request, Guid.NewGuid())
+        );
     }
 
     [Fact]
@@ -134,9 +134,9 @@ public class DeliverableServiceTests
             Description = "Test deliverable"
         };
 
-        var result = await _deliverableService.SubmitDeliverableAsync(request, outsider.Id);
-
-        Assert.Null(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _deliverableService.SubmitDeliverableAsync(request, outsider.Id)
+        );
     }
 
     [Fact]
@@ -144,16 +144,30 @@ public class DeliverableServiceTests
     {
         var (requester, _, agreement) = await SeedAgreementAsync(AgreementStatus.Completed);
 
+        var milestone = new Milestone
+        {
+            Id = Guid.NewGuid(),
+            AgreementId = agreement.Id,
+            Title = "Test Milestone",
+            DurationInDays = 7,
+            DueAt = DateTime.UtcNow.AddDays(7),
+            ResponsibleUserId = requester.Id,
+            Status = MilestoneStatus.Pending
+        };
+        _context.Milestones.Add(milestone);
+        await _context.SaveChangesAsync();
+
         var request = new SubmitDeliverableRequest
         {
             AgreementId = agreement.Id,
+            MilestoneId = milestone.Id,
             Link = "http://deliverable.com/file",
             Description = "Test deliverable"
         };
 
-        var result = await _deliverableService.SubmitDeliverableAsync(request, requester.Id);
-
-        Assert.Null(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _deliverableService.SubmitDeliverableAsync(request, requester.Id)
+        );
     }
 
     [Fact]
@@ -161,10 +175,23 @@ public class DeliverableServiceTests
     {
         var (requester, _, agreement) = await SeedAgreementAsync();
 
+        var milestone = new Milestone
+        {
+            Id = Guid.NewGuid(),
+            AgreementId = agreement.Id,
+            Title = "Test Milestone",
+            DurationInDays = 7,
+            DueAt = DateTime.UtcNow.AddDays(7),
+            ResponsibleUserId = requester.Id,
+            Status = MilestoneStatus.Pending
+        };
+        _context.Milestones.Add(milestone);
+
         var existingDeliverable = new Deliverable
         {
             Id = Guid.NewGuid(),
             AgreementId = agreement.Id,
+            MilestoneId = milestone.Id,
             SubmittedById = requester.Id,
             Link = "http://existing.com",
             Description = "Existing",
@@ -176,13 +203,14 @@ public class DeliverableServiceTests
         var request = new SubmitDeliverableRequest
         {
             AgreementId = agreement.Id,
+            MilestoneId = milestone.Id,
             Link = "http://new.com",
             Description = "New deliverable"
         };
 
-        var result = await _deliverableService.SubmitDeliverableAsync(request, requester.Id);
-
-        Assert.Null(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _deliverableService.SubmitDeliverableAsync(request, requester.Id)
+        );
     }
 
     [Fact]
@@ -190,9 +218,23 @@ public class DeliverableServiceTests
     {
         var (requester, provider, agreement) = await SeedAgreementAsync();
 
+        var milestone = new Milestone
+        {
+            Id = Guid.NewGuid(),
+            AgreementId = agreement.Id,
+            Title = "Test Milestone",
+            DurationInDays = 7,
+            DueAt = DateTime.UtcNow.AddDays(7),
+            ResponsibleUserId = requester.Id,
+            Status = MilestoneStatus.Pending
+        };
+        _context.Milestones.Add(milestone);
+        await _context.SaveChangesAsync();
+
         var request = new SubmitDeliverableRequest
         {
             AgreementId = agreement.Id,
+            MilestoneId = milestone.Id,
             Link = "http://deliverable.com/file",
             Description = "Test deliverable"
         };
@@ -215,9 +257,9 @@ public class DeliverableServiceTests
     [Fact]
     public async Task ApproveDeliverableAsync_DeliverableNotFound_ReturnsNull()
     {
-        var result = await _deliverableService.ApproveDeliverableAsync(Guid.NewGuid(), Guid.NewGuid());
-
-        Assert.Null(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _deliverableService.ApproveDeliverableAsync(Guid.NewGuid(), Guid.NewGuid())
+        );
     }
 
     [Fact]
@@ -239,9 +281,9 @@ public class DeliverableServiceTests
         _context.Deliverables.Add(deliverable);
         await _context.SaveChangesAsync();
 
-        var result = await _deliverableService.ApproveDeliverableAsync(deliverable.Id, requester.Id);
-
-        Assert.Null(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _deliverableService.ApproveDeliverableAsync(deliverable.Id, requester.Id)
+        );
     }
 
     [Fact]
@@ -263,9 +305,9 @@ public class DeliverableServiceTests
         _context.Deliverables.Add(deliverable);
         await _context.SaveChangesAsync();
 
-        var result = await _deliverableService.ApproveDeliverableAsync(deliverable.Id, provider.Id);
-
-        Assert.Null(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _deliverableService.ApproveDeliverableAsync(deliverable.Id, provider.Id)
+        );
     }
 
     [Fact]
@@ -303,10 +345,35 @@ public class DeliverableServiceTests
     {
         var (requester, provider, agreement) = await SeedAgreementAsync();
 
+        var requesterMilestone = new Milestone
+        {
+            Id = Guid.NewGuid(),
+            AgreementId = agreement.Id,
+            Title = "Requester Milestone",
+            DurationInDays = 7,
+            DueAt = DateTime.UtcNow.AddDays(7),
+            ResponsibleUserId = requester.Id,
+            Status = MilestoneStatus.Completed
+        };
+
+        var providerMilestone = new Milestone
+        {
+            Id = Guid.NewGuid(),
+            AgreementId = agreement.Id,
+            Title = "Provider Milestone",
+            DurationInDays = 14,
+            DueAt = DateTime.UtcNow.AddDays(14),
+            ResponsibleUserId = provider.Id,
+            Status = MilestoneStatus.InProgress
+        };
+
+        _context.Milestones.AddRange(requesterMilestone, providerMilestone);
+
         var requesterDeliverable = new Deliverable
         {
             Id = Guid.NewGuid(),
             AgreementId = agreement.Id,
+            MilestoneId = requesterMilestone.Id,
             SubmittedById = requester.Id,
             Link = "http://requester.com",
             Description = "Requester deliverable",
@@ -319,6 +386,7 @@ public class DeliverableServiceTests
         {
             Id = Guid.NewGuid(),
             AgreementId = agreement.Id,
+            MilestoneId = providerMilestone.Id,
             SubmittedById = provider.Id,
             Link = "http://provider.com",
             Description = "Provider deliverable",
@@ -345,9 +413,9 @@ public class DeliverableServiceTests
     {
         var request = new RequestRevisionRequest { Reason = "Needs improvement" };
 
-        var result = await _deliverableService.RequestRevisionAsync(Guid.NewGuid(), request, Guid.NewGuid());
-
-        Assert.Null(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _deliverableService.RequestRevisionAsync(Guid.NewGuid(), request, Guid.NewGuid())
+        );
     }
 
     [Fact]
@@ -371,9 +439,9 @@ public class DeliverableServiceTests
 
         var request = new RequestRevisionRequest { Reason = "Needs improvement" };
 
-        var result = await _deliverableService.RequestRevisionAsync(deliverable.Id, request, requester.Id);
-
-        Assert.Null(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _deliverableService.RequestRevisionAsync(deliverable.Id, request, requester.Id)
+        );
     }
 
     [Fact]
@@ -420,9 +488,9 @@ public class DeliverableServiceTests
             Description = "Revised"
         };
 
-        var result = await _deliverableService.ResubmitDeliverableAsync(Guid.NewGuid(), request, Guid.NewGuid());
-
-        Assert.Null(result);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => _deliverableService.ResubmitDeliverableAsync(Guid.NewGuid(), request, Guid.NewGuid())
+        );
     }
 
     [Fact]
@@ -492,10 +560,23 @@ public class DeliverableServiceTests
     {
         var (requester, provider, agreement) = await SeedAgreementAsync();
 
+        var milestone = new Milestone
+        {
+            Id = Guid.NewGuid(),
+            AgreementId = agreement.Id,
+            Title = "Test Milestone",
+            DurationInDays = 7,
+            DueAt = DateTime.UtcNow.AddDays(7),
+            ResponsibleUserId = requester.Id,
+            Status = MilestoneStatus.InProgress
+        };
+        _context.Milestones.Add(milestone);
+
         var deliverable = new Deliverable
         {
             Id = Guid.NewGuid(),
             AgreementId = agreement.Id,
+            MilestoneId = milestone.Id,
             SubmittedById = requester.Id,
             Link = "http://original.com",
             Description = "Original",
@@ -510,6 +591,7 @@ public class DeliverableServiceTests
         var request = new SubmitDeliverableRequest
         {
             AgreementId = agreement.Id,
+            MilestoneId = milestone.Id,
             Link = "http://revised.com",
             Description = "Revised deliverable"
         };

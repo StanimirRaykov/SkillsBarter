@@ -95,10 +95,25 @@ public class AgreementServiceTests
     {
         var (requester, provider, offer, _) = await SeedOfferAsync();
 
+        offer.UserId = provider.Id;
+        offer.User = provider;
+        _context.Offers.Update(offer);
+        await _context.SaveChangesAsync();
+
         var milestones = new List<CreateMilestoneRequest>
         {
-            new CreateMilestoneRequest { Title = "Phase 1", DurationInDays = 7 },
-            new CreateMilestoneRequest { Title = "Phase 2", DurationInDays = 14 }
+            new CreateMilestoneRequest
+            {
+                Title = "Phase 1",
+                DurationInDays = 7,
+                DueAt = DateTime.UtcNow.AddDays(7)
+            },
+            new CreateMilestoneRequest
+            {
+                Title = "Phase 2",
+                DurationInDays = 14,
+                DueAt = DateTime.UtcNow.AddDays(14)
+            }
         };
 
         var result = await _agreementService.CreateAgreementAsync(
@@ -118,10 +133,10 @@ public class AgreementServiceTests
         Assert.Equal(OfferStatusCode.UnderAgreement, storedOffer!.StatusCode);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(requester.Id, NotificationType.AgreementCreated, "Agreement Created", It.IsAny<string>(), It.IsAny<Guid?>()),
+            n => n.CreateAsync(requester.Id, NotificationType.AgreementCreated, "Agreement Proposal Sent", It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(provider.Id, NotificationType.AgreementCreated, "Agreement Created", It.IsAny<string>(), It.IsAny<Guid?>()),
+            n => n.CreateAsync(provider.Id, NotificationType.AgreementCreated, "New Agreement Proposal", It.IsAny<string>(), It.IsAny<Guid?>()),
             Times.Once);
     }
 

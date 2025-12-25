@@ -24,7 +24,7 @@ public class OfferServiceTests
         _mockNotificationService = new Mock<INotificationService>();
         _mockUserManager = new Mock<UserManager<ApplicationUser>>(
             Mock.Of<IUserStore<ApplicationUser>>(),
-            null, null, null, null, null, null, null, null);
+            null!, null!, null!, null!, null!, null!, null!, null!);
         SetupInMemoryDatabase();
     }
 

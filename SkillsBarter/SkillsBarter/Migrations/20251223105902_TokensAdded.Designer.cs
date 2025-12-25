@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SkillsBarter.Data;
@@ -11,9 +12,11 @@ using SkillsBarter.Data;
 namespace SkillsBarter.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251223105902_TokensAdded")]
+    partial class TokensAdded
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -426,13 +429,6 @@ namespace SkillsBarter.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("complainer_approved_before_dispute");
 
-                    b.Property<string>("ComplainerDecision")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Pending")
-                        .HasColumnName("complainer_decision");
-
                     b.Property<bool>("ComplainerDelivered")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -498,13 +494,6 @@ namespace SkillsBarter.Migrations
                         .HasDefaultValue(false)
                         .HasColumnName("respondent_approved_before_dispute");
 
-                    b.Property<string>("RespondentDecision")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("Pending")
-                        .HasColumnName("respondent_decision");
-
                     b.Property<bool>("RespondentDelivered")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -541,13 +530,6 @@ namespace SkillsBarter.Migrations
                         .HasColumnType("text")
                         .HasDefaultValue("Open")
                         .HasColumnName("status");
-
-                    b.Property<string>("SystemDecision")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("text")
-                        .HasDefaultValue("EscalateToModerator")
-                        .HasColumnName("system_decision");
 
                     b.HasKey("Id");
 

@@ -33,12 +33,7 @@ public class DeliverablesController : ControllerBase
     {
         if (!ModelState.IsValid)
         {
-            var errors = ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage)
-                .ToList();
-            var message = errors.Any() ? string.Join(" ", errors) : "Invalid request. Please correct the highlighted fields.";
-            return BadRequest(new { message, errors = ModelState });
+            return BadRequest(new { message = "Invalid request", errors = ModelState });
         }
 
         var user = await _userManager.GetUserAsync(User);
@@ -50,7 +45,11 @@ public class DeliverablesController : ControllerBase
         try
         {
             var result = await _deliverableService.SubmitDeliverableAsync(request, user.Id);
-            return CreatedAtAction(nameof(GetDeliverable), new { id = result!.Id }, result);
+            if (result == null)
+            {
+                return BadRequest(new { message = "Failed to submit deliverable" });
+            }
+            return CreatedAtAction(nameof(GetDeliverable), new { id = result.Id }, result);
         }
         catch (InvalidOperationException ex)
         {
@@ -117,6 +116,10 @@ public class DeliverablesController : ControllerBase
         try
         {
             var result = await _deliverableService.ApproveDeliverableAsync(id, user.Id);
+            if (result == null)
+            {
+                return BadRequest(new { message = "Failed to approve deliverable" });
+            }
             return Ok(new { message = "Deliverable approved", deliverable = result });
         }
         catch (InvalidOperationException ex)
@@ -136,12 +139,7 @@ public class DeliverablesController : ControllerBase
     {
         if (!ModelState.IsValid)
         {
-            var errors = ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage)
-                .ToList();
-            var message = errors.Any() ? string.Join(" ", errors) : "Invalid request";
-            return BadRequest(new { message, errors = ModelState });
+            return BadRequest(new { message = "Invalid request", errors = ModelState });
         }
 
         var user = await _userManager.GetUserAsync(User);
@@ -153,6 +151,10 @@ public class DeliverablesController : ControllerBase
         try
         {
             var result = await _deliverableService.RequestRevisionAsync(id, request, user.Id);
+            if (result == null)
+            {
+                return BadRequest(new { message = "Failed to request revision" });
+            }
             return Ok(new { message = "Revision requested", deliverable = result });
         }
         catch (InvalidOperationException ex)
@@ -172,12 +174,7 @@ public class DeliverablesController : ControllerBase
     {
         if (!ModelState.IsValid)
         {
-            var errors = ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage)
-                .ToList();
-            var message = errors.Any() ? string.Join(" ", errors) : "Invalid request";
-            return BadRequest(new { message, errors = ModelState });
+            return BadRequest(new { message = "Invalid request", errors = ModelState });
         }
 
         var user = await _userManager.GetUserAsync(User);
@@ -189,6 +186,10 @@ public class DeliverablesController : ControllerBase
         try
         {
             var result = await _deliverableService.ResubmitDeliverableAsync(id, request, user.Id);
+            if (result == null)
+            {
+                return BadRequest(new { message = "Failed to resubmit deliverable" });
+            }
             return Ok(new { message = "Deliverable resubmitted", deliverable = result });
         }
         catch (InvalidOperationException ex)
