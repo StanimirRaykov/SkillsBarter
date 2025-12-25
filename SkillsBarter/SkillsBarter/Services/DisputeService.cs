@@ -30,6 +30,7 @@ public class DisputeService : IDisputeService
         {
             var agreement = await _dbContext.Agreements
                 .Include(a => a.Deliverables)
+                    .ThenInclude(d => d.Milestone)
                 .Include(a => a.Requester)
                 .Include(a => a.Provider)
                 .FirstOrDefaultAsync(a => a.Id == request.AgreementId);
@@ -74,6 +75,8 @@ public class DisputeService : IDisputeService
 
             var scoreData = CalculateScoreData(agreement, userId, respondentId, deadline);
 
+            var systemDecision = GetSystemDecisionFromScore(scoreData.Score);
+
             var dispute = new Dispute
             {
                 Id = Guid.NewGuid(),
@@ -83,7 +86,10 @@ public class DisputeService : IDisputeService
                 ReasonCode = request.ReasonCode,
                 Description = request.Description,
                 Status = DisputeStatus.AwaitingResponse,
-                Resolution = DisputeResolution.None,
+                SystemDecision = systemDecision,
+                Resolution = systemDecision == DisputeSystemDecision.EscalateToModerator
+                    ? DisputeResolution.None
+                    : GetResolutionForDecision(systemDecision),
                 Score = scoreData.Score,
                 ComplainerDelivered = scoreData.ComplainerDelivered,
                 RespondentDelivered = scoreData.RespondentDelivered,
@@ -147,6 +153,12 @@ public class DisputeService : IDisputeService
             {
                 _logger.LogWarning("Respond to dispute failed: Dispute {DisputeId} not found", disputeId);
                 return null;
+            }
+
+            if (await EnforceResponseDeadlineAsync(dispute))
+            {
+                await transaction.CommitAsync();
+                return await MapToResponseAsync(dispute, userId);
             }
 
             if (dispute.RespondentId != userId)
@@ -218,6 +230,21 @@ public class DisputeService : IDisputeService
                     "The dispute has been escalated to a moderator for review"
                 );
             }
+            else if (dispute.Status == DisputeStatus.UnderReview)
+            {
+                await _notificationService.CreateAsync(
+                    dispute.OpenedById,
+                    NotificationType.DisputeResponse,
+                    "Decision Ready",
+                    "A system decision is available. Accept it or escalate to moderator."
+                );
+                await _notificationService.CreateAsync(
+                    dispute.RespondentId,
+                    NotificationType.DisputeResponse,
+                    "Decision Ready",
+                    "A system decision is available. Accept it or escalate to moderator."
+                );
+            }
             else if (dispute.Status == DisputeStatus.Resolved)
             {
                 await NotifyDisputeResolutionAsync(dispute);
@@ -229,6 +256,137 @@ public class DisputeService : IDisputeService
         {
             await transaction.RollbackAsync();
             _logger.LogError(ex, "Error responding to dispute {DisputeId} by user {UserId}", disputeId, userId);
+            throw;
+        }
+    }
+
+    public async Task<DisputeResponse?> AcceptSystemDecisionAsync(Guid disputeId, AcceptDecisionRequest request, Guid userId)
+    {
+        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var dispute = await GetDisputeWithIncludesAsync(disputeId);
+
+            if (dispute == null)
+            {
+                _logger.LogWarning("Accept decision failed: Dispute {DisputeId} not found", disputeId);
+                return null;
+            }
+
+            if (!IsUserPartOfDispute(dispute, userId))
+            {
+                _logger.LogWarning("Accept decision failed: User {UserId} not part of dispute {DisputeId}", userId, disputeId);
+                return null;
+            }
+
+            if (await EnforceResponseDeadlineAsync(dispute))
+            {
+                await transaction.CommitAsync();
+                return await MapToResponseAsync(dispute, userId);
+            }
+
+            if (dispute.Status != DisputeStatus.UnderReview || dispute.SystemDecision == DisputeSystemDecision.EscalateToModerator)
+            {
+                _logger.LogWarning("Accept decision failed: Dispute {DisputeId} not awaiting acceptance", disputeId);
+                return null;
+            }
+
+            if (request.Accept)
+            {
+                if (dispute.OpenedById == userId)
+                    dispute.ComplainerDecision = DisputePartyDecision.Accept;
+                else if (dispute.RespondentId == userId)
+                    dispute.RespondentDecision = DisputePartyDecision.Accept;
+            }
+            else
+            {
+                if (dispute.OpenedById == userId)
+                    dispute.ComplainerDecision = DisputePartyDecision.Reject;
+                else if (dispute.RespondentId == userId)
+                    dispute.RespondentDecision = DisputePartyDecision.Reject;
+
+                SetEscalatedStatus(dispute, "Participant rejected the system decision");
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                await NotifyEscalationAsync(dispute);
+
+                return await MapToResponseAsync(dispute, userId);
+            }
+
+            await _dbContext.SaveChangesAsync();
+
+            if (dispute.ComplainerDecision == DisputePartyDecision.Accept &&
+                dispute.RespondentDecision == DisputePartyDecision.Accept)
+            {
+                await FinalizeSystemDecisionAsync(dispute);
+            }
+
+            await transaction.CommitAsync();
+
+            _logger.LogInformation("User {UserId} recorded decision for dispute {DisputeId}", userId, disputeId);
+
+            return await MapToResponseAsync(dispute, userId);
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Error accepting decision for dispute {DisputeId} by user {UserId}", disputeId, userId);
+            throw;
+        }
+    }
+
+    public async Task<DisputeResponse?> EscalateDisputeAsync(Guid disputeId, EscalateDisputeRequest request, Guid userId)
+    {
+        using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        try
+        {
+            var dispute = await GetDisputeWithIncludesAsync(disputeId);
+
+            if (dispute == null)
+            {
+                _logger.LogWarning("Escalate dispute failed: Dispute {DisputeId} not found", disputeId);
+                return null;
+            }
+
+            if (!IsUserPartOfDispute(dispute, userId))
+            {
+                _logger.LogWarning("Escalate dispute failed: User {UserId} not part of dispute {DisputeId}", userId, disputeId);
+                return null;
+            }
+
+            if (await EnforceResponseDeadlineAsync(dispute))
+            {
+                await transaction.CommitAsync();
+                return await MapToResponseAsync(dispute, userId);
+            }
+
+            if (dispute.Status == DisputeStatus.Resolved || dispute.Status == DisputeStatus.Closed)
+            {
+                _logger.LogWarning("Escalate dispute failed: Dispute {DisputeId} already closed", disputeId);
+                return null;
+            }
+
+            if (dispute.OpenedById == userId)
+                dispute.ComplainerDecision = DisputePartyDecision.Reject;
+            else if (dispute.RespondentId == userId)
+                dispute.RespondentDecision = DisputePartyDecision.Reject;
+
+            SetEscalatedStatus(dispute, request.Reason);
+
+            await _dbContext.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            await NotifyEscalationAsync(dispute);
+
+            _logger.LogInformation("Dispute {DisputeId} escalated to moderator by {UserId}", disputeId, userId);
+
+            return await MapToResponseAsync(dispute, userId);
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            _logger.LogError(ex, "Error escalating dispute {DisputeId} by user {UserId}", disputeId, userId);
             throw;
         }
     }
@@ -281,11 +439,15 @@ public class DisputeService : IDisputeService
         if (!IsUserPartOfDispute(dispute, userId) && !isModerator)
             return null;
 
+        await EnforceResponseDeadlineAsync(dispute);
+
         return await MapToResponseAsync(dispute, userId);
     }
 
     public async Task<List<DisputeListResponse>> GetMyDisputesAsync(Guid userId)
     {
+        await ProcessExpiredDisputesAsync();
+
         var disputes = await _dbContext.Disputes
             .AsNoTracking()
             .Include(d => d.OpenedBy)
@@ -294,7 +456,7 @@ public class DisputeService : IDisputeService
             .OrderByDescending(d => d.CreatedAt)
             .ToListAsync();
 
-        return disputes.Select(d => MapToListResponse(d, userId)).ToList();
+        return disputes.Select(d => MapToListResponse(d, userId, false)).ToList();
     }
 
     public async Task<List<DisputeListResponse>> GetDisputesForModerationAsync(Guid moderatorId)
@@ -302,6 +464,8 @@ public class DisputeService : IDisputeService
         var isModerator = await _dbContext.Users.AsNoTracking().AnyAsync(u => u.Id == moderatorId && u.IsModerator);
         if (!isModerator)
             return new List<DisputeListResponse>();
+
+        await ProcessExpiredDisputesAsync();
 
         var disputes = await _dbContext.Disputes
             .AsNoTracking()
@@ -311,7 +475,7 @@ public class DisputeService : IDisputeService
             .OrderByDescending(d => d.EscalatedAt)
             .ToListAsync();
 
-        return disputes.Select(d => MapToListResponse(d, moderatorId)).ToList();
+        return disputes.Select(d => MapToListResponse(d, moderatorId, true)).ToList();
     }
 
     public async Task<DisputeResponse?> MakeModeratorDecisionAsync(Guid disputeId, ModeratorDecisionRequest request, Guid moderatorId)
@@ -380,22 +544,8 @@ public class DisputeService : IDisputeService
 
         foreach (var dispute in expiredDisputes)
         {
-            dispute.Status = DisputeStatus.Resolved;
-            dispute.Resolution = DisputeResolution.FavorsComplainer;
-            dispute.ClosedAt = DateTime.UtcNow;
-            dispute.ResolutionSummary = "Auto-resolved: Respondent failed to respond within 72 hours.";
-
-            CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, PenaltyReason.NoDisputeResponse);
-
-            await ApplyResolutionToAgreement(dispute);
-
-            _logger.LogInformation("Dispute {DisputeId} auto-resolved due to no response", dispute.Id);
-
-            await NotifyDisputeResolutionAsync(dispute);
+            await EnforceResponseDeadlineAsync(dispute);
         }
-
-        if (expiredDisputes.Count > 0)
-            await _dbContext.SaveChangesAsync();
     }
 
     private (int Score, bool ComplainerDelivered, bool RespondentDelivered, bool ComplainerOnTime, bool RespondentOnTime, bool ComplainerApprovedBeforeDispute, bool RespondentApprovedBeforeDispute) CalculateScoreData(
@@ -410,8 +560,11 @@ public class DisputeService : IDisputeService
         var complainerDelivered = complainerDeliverable is not null;
         var respondentDelivered = respondentDeliverable is not null;
 
-        var complainerOnTime = complainerDeliverable is not null && complainerDeliverable.SubmittedAt <= deadline;
-        var respondentOnTime = respondentDeliverable is not null && respondentDeliverable.SubmittedAt <= deadline;
+        var complainerDue = complainerDeliverable?.Milestone?.DueAt ?? deadline;
+        var respondentDue = respondentDeliverable?.Milestone?.DueAt ?? deadline;
+
+        var complainerOnTime = complainerDeliverable is not null && complainerDeliverable.SubmittedAt <= complainerDue;
+        var respondentOnTime = respondentDeliverable is not null && respondentDeliverable.SubmittedAt <= respondentDue;
 
         var complainerApproved = complainerDeliverable?.Status == DeliverableStatus.Approved;
         var respondentApproved = respondentDeliverable?.Status == DeliverableStatus.Approved;
@@ -443,31 +596,48 @@ public class DisputeService : IDisputeService
         return (score, complainerDelivered, respondentDelivered, complainerOnTime, respondentOnTime, complainerApproved, respondentApproved);
     }
 
+    private static DisputeSystemDecision GetSystemDecisionFromScore(int score)
+    {
+        if (score >= 70)
+            return DisputeSystemDecision.ProviderWins;
+        if (score < 40)
+            return DisputeSystemDecision.ComplainantWins;
+        return DisputeSystemDecision.EscalateToModerator;
+    }
+
+    private static DisputeResolution GetResolutionForDecision(DisputeSystemDecision decision)
+    {
+        return decision switch
+        {
+            DisputeSystemDecision.ProviderWins => DisputeResolution.FavorsRespondent,
+            DisputeSystemDecision.ComplainantWins => DisputeResolution.FavorsComplainer,
+            _ => DisputeResolution.ModeratorDecision
+        };
+    }
+
     private void ResolveOrEscalate(Dispute dispute)
     {
-        if (dispute.Score >= 70)
-        {
-            dispute.Status = DisputeStatus.Resolved;
-            dispute.Resolution = DisputeResolution.FavorsRespondent;
-            dispute.ClosedAt = DateTime.UtcNow;
-            dispute.ResolutionSummary = "Auto-resolved: Score indicates respondent fulfilled obligations (score >= 70).";
+        var decision = GetSystemDecisionFromScore(dispute.Score);
+        dispute.SystemDecision = decision;
+        dispute.Resolution = decision == DisputeSystemDecision.EscalateToModerator
+            ? DisputeResolution.None
+            : GetResolutionForDecision(decision);
+        dispute.ComplainerDecision = DisputePartyDecision.Pending;
+        dispute.RespondentDecision = DisputePartyDecision.Pending;
 
-            CreatePenalty(dispute.OpenedById, dispute.AgreementId, dispute.Id, PenaltyReason.DisputeLostFullPenalty);
-        }
-        else if (dispute.Score < 40)
-        {
-            dispute.Status = DisputeStatus.Resolved;
-            dispute.Resolution = DisputeResolution.FavorsComplainer;
-            dispute.ClosedAt = DateTime.UtcNow;
-            dispute.ResolutionSummary = "Auto-resolved: Score indicates complainer's grievance is valid (score < 40).";
-
-            CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, PenaltyReason.DisputeLostFullPenalty);
-        }
-        else
+        if (decision == DisputeSystemDecision.EscalateToModerator)
         {
             dispute.Status = DisputeStatus.EscalatedToModerator;
             dispute.EscalatedAt = DateTime.UtcNow;
             dispute.ResolutionSummary = "Escalated to moderator: Score is in the gray zone (40-69).";
+        }
+        else
+        {
+            dispute.Status = DisputeStatus.UnderReview;
+            dispute.ClosedAt = null;
+            dispute.ResolutionSummary = decision == DisputeSystemDecision.ProviderWins
+                ? "System decision favors the provider based on scoring."
+                : "System decision favors the complainer based on scoring.";
         }
     }
 
@@ -479,6 +649,85 @@ public class DisputeService : IDisputeService
             return;
 
         agreement.Status = AgreementStatus.Cancelled;
+    }
+
+    private async Task<bool> EnforceResponseDeadlineAsync(Dispute dispute)
+    {
+        if (dispute.Status != DisputeStatus.AwaitingResponse || dispute.ResponseReceivedAt.HasValue)
+            return false;
+
+        if (DateTime.UtcNow <= dispute.ResponseDeadline)
+            return false;
+
+        dispute.Status = DisputeStatus.Resolved;
+        dispute.Resolution = DisputeResolution.FavorsComplainer;
+        dispute.SystemDecision = DisputeSystemDecision.ComplainantWins;
+        dispute.ComplainerDecision = DisputePartyDecision.Accept;
+        dispute.RespondentDecision = DisputePartyDecision.Reject;
+        dispute.ClosedAt = DateTime.UtcNow;
+        dispute.ResolutionSummary = "Auto-resolved: Respondent failed to respond within 72 hours.";
+
+        CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, PenaltyReason.NoDisputeResponse);
+
+        await ApplyResolutionToAgreement(dispute);
+        await _dbContext.SaveChangesAsync();
+
+        _logger.LogInformation("Dispute {DisputeId} auto-resolved due to no response", dispute.Id);
+
+        await NotifyDisputeResolutionAsync(dispute);
+
+        return true;
+    }
+
+    private async Task FinalizeSystemDecisionAsync(Dispute dispute)
+    {
+        if (dispute.Status != DisputeStatus.UnderReview)
+            return;
+
+        dispute.Status = DisputeStatus.Resolved;
+        dispute.ClosedAt = DateTime.UtcNow;
+        dispute.ResolutionSummary ??= "System decision accepted by both parties.";
+
+        if (dispute.Resolution == DisputeResolution.FavorsComplainer)
+        {
+            CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, PenaltyReason.DisputeLostFullPenalty);
+        }
+        else if (dispute.Resolution == DisputeResolution.FavorsRespondent)
+        {
+            CreatePenalty(dispute.OpenedById, dispute.AgreementId, dispute.Id, PenaltyReason.DisputeLostFullPenalty);
+        }
+
+        await ApplyResolutionToAgreement(dispute);
+        await _dbContext.SaveChangesAsync();
+        await NotifyDisputeResolutionAsync(dispute);
+    }
+
+    private void SetEscalatedStatus(Dispute dispute, string? reason)
+    {
+        dispute.Status = DisputeStatus.EscalatedToModerator;
+        dispute.SystemDecision = DisputeSystemDecision.EscalateToModerator;
+        dispute.EscalatedAt = DateTime.UtcNow;
+        dispute.Resolution = DisputeResolution.None;
+        dispute.ResolutionSummary = string.IsNullOrWhiteSpace(reason)
+            ? "Escalated to moderator by participant."
+            : $"Escalated to moderator: {reason}";
+        dispute.ClosedAt = null;
+    }
+
+    private async Task NotifyEscalationAsync(Dispute dispute)
+    {
+        await _notificationService.CreateAsync(
+            dispute.OpenedById,
+            NotificationType.DisputeEscalated,
+            "Dispute Escalated",
+            "The dispute has been escalated to a moderator for review"
+        );
+        await _notificationService.CreateAsync(
+            dispute.RespondentId,
+            NotificationType.DisputeEscalated,
+            "Dispute Escalated",
+            "The dispute has been escalated to a moderator for review"
+        );
     }
 
     private async Task<Dispute?> GetDisputeWithIncludesAsync(Guid disputeId)
@@ -535,6 +784,7 @@ public class DisputeService : IDisputeService
             Description = dispute.Description,
             Status = dispute.Status,
             Resolution = dispute.Resolution,
+            SystemDecision = dispute.SystemDecision,
             Score = dispute.Score,
             ScoreBreakdown = new ScoreBreakdown
             {
@@ -556,6 +806,8 @@ public class DisputeService : IDisputeService
                 UserId = dispute.RespondentId,
                 Name = dispute.Respondent?.Name ?? string.Empty
             },
+            ComplainerDecision = dispute.ComplainerDecision,
+            RespondentDecision = dispute.RespondentDecision,
             ResolutionSummary = dispute.ResolutionSummary,
             CreatedAt = dispute.CreatedAt,
             ResponseDeadline = dispute.ResponseDeadline,
@@ -573,11 +825,15 @@ public class DisputeService : IDisputeService
             }).ToList() ?? new List<EvidenceResponse>(),
             CanRespond = dispute.RespondentId == currentUserId && dispute.Status == DisputeStatus.AwaitingResponse,
             CanAddEvidence = CanUserAddEvidence(dispute, currentUserId),
-            IsEscalated = dispute.Status == DisputeStatus.EscalatedToModerator
+            IsEscalated = dispute.Status == DisputeStatus.EscalatedToModerator,
+            CanAcceptDecision = dispute.Status == DisputeStatus.UnderReview &&
+                                IsUserPartOfDispute(dispute, currentUserId) &&
+                                dispute.SystemDecision != DisputeSystemDecision.EscalateToModerator,
+            CanEscalate = dispute.Status == DisputeStatus.UnderReview && IsUserPartOfDispute(dispute, currentUserId)
         };
     }
 
-    private DisputeListResponse MapToListResponse(Dispute dispute, Guid currentUserId)
+    private DisputeListResponse MapToListResponse(Dispute dispute, Guid currentUserId, bool isModeratorView = false)
     {
         return new DisputeListResponse
         {
@@ -591,7 +847,9 @@ public class DisputeService : IDisputeService
             RespondentName = dispute.Respondent?.Name ?? string.Empty,
             CreatedAt = dispute.CreatedAt,
             ResponseDeadline = dispute.ResponseDeadline,
-            RequiresAction = dispute.RespondentId == currentUserId && dispute.Status == DisputeStatus.AwaitingResponse
+            RequiresAction =
+                (dispute.RespondentId == currentUserId && dispute.Status == DisputeStatus.AwaitingResponse) ||
+                (isModeratorView && dispute.Status == DisputeStatus.EscalatedToModerator)
         };
     }
 

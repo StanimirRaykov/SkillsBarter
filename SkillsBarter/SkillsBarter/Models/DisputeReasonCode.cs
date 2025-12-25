@@ -1,5 +1,9 @@
+using System.Text.Json.Serialization;
+using SkillsBarter.Models.Converters;
+
 namespace SkillsBarter.Models;
 
+[JsonConverter(typeof(DisputeReasonCodeConverter))]
 public enum DisputeReasonCode
 {
     WorkNotDelivered,
@@ -7,5 +11,9 @@ public enum DisputeReasonCode
     QualityIssues,
     DeadlineMissed,
     CommunicationIssues,
-    Other
+    Other,
+    NonDelivery,
+    NoDelivery,
+    LateDelivery,
+    PoorQuality
 }

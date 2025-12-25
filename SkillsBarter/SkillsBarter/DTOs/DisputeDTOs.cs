@@ -40,6 +40,18 @@ public class RespondToDisputeRequest
     public List<EvidenceRequest> Evidence { get; set; } = new();
 }
 
+public class AcceptDecisionRequest
+{
+    [Required]
+    public bool Accept { get; set; }
+}
+
+public class EscalateDisputeRequest
+{
+    [MaxLength(2000)]
+    public string? Reason { get; set; }
+}
+
 public class ModeratorDecisionRequest
 {
     [Required]
@@ -59,12 +71,15 @@ public class DisputeResponse
     public string Description { get; set; } = string.Empty;
     public DisputeStatus Status { get; set; }
     public DisputeResolution Resolution { get; set; }
+    public DisputeSystemDecision SystemDecision { get; set; }
 
     public int Score { get; set; }
     public ScoreBreakdown ScoreBreakdown { get; set; } = new();
 
     public DisputePartyInfo Complainer { get; set; } = new();
     public DisputePartyInfo Respondent { get; set; } = new();
+    public DisputePartyDecision ComplainerDecision { get; set; }
+    public DisputePartyDecision RespondentDecision { get; set; }
 
     public string? ResolutionSummary { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -78,6 +93,8 @@ public class DisputeResponse
     public bool CanRespond { get; set; }
     public bool CanAddEvidence { get; set; }
     public bool IsEscalated { get; set; }
+    public bool CanAcceptDecision { get; set; }
+    public bool CanEscalate { get; set; }
 }
 
 public class ScoreBreakdown

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using SkillsBarter.Constants;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
 using SkillsBarter.Services;
@@ -96,6 +97,40 @@ public class DisputesController : ControllerBase
         return Ok(new { message = "Response submitted", dispute = result });
     }
 
+    [HttpPost("{id:guid}/accept")]
+    public async Task<IActionResult> AcceptDecision(Guid id, [FromBody] AcceptDecisionRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(new { message = "Invalid request", errors = ModelState });
+
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+            return Unauthorized(new { message = "User not authenticated" });
+
+        var result = await _disputeService.AcceptSystemDecisionAsync(id, request, user.Id);
+        if (result == null)
+            return BadRequest(new { message = "Failed to record decision." });
+
+        return Ok(new { message = "Decision recorded", dispute = result });
+    }
+
+    [HttpPost("{id:guid}/escalate")]
+    public async Task<IActionResult> Escalate(Guid id, [FromBody] EscalateDisputeRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(new { message = "Invalid request", errors = ModelState });
+
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+            return Unauthorized(new { message = "User not authenticated" });
+
+        var result = await _disputeService.EscalateDisputeAsync(id, request, user.Id);
+        if (result == null)
+            return BadRequest(new { message = "Failed to escalate dispute." });
+
+        return Ok(new { message = "Dispute escalated", dispute = result });
+    }
+
     [HttpPost("{id:guid}/evidence")]
     public async Task<IActionResult> AddEvidence(Guid id, [FromBody] EvidenceRequest request)
     {
@@ -119,20 +154,19 @@ public class DisputesController : ControllerBase
     }
 
     [HttpGet("moderation")]
+    [Authorize(Roles = $"{AppRoles.Moderator},{AppRoles.Admin}")]
     public async Task<IActionResult> GetDisputesForModeration()
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null)
             return Unauthorized(new { message = "User not authenticated" });
 
-        if (!user.IsModerator)
-            return Forbid();
-
         var result = await _disputeService.GetDisputesForModerationAsync(user.Id);
         return Ok(result);
     }
 
     [HttpPost("{id:guid}/moderate")]
+    [Authorize(Roles = $"{AppRoles.Moderator},{AppRoles.Admin}")]
     public async Task<IActionResult> MakeModeratorDecision(
         Guid id,
         [FromBody] ModeratorDecisionRequest request
