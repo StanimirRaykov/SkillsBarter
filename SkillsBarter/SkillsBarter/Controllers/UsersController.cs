@@ -402,4 +402,56 @@ public class UsersController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while activating premium" });
         }
     }
+
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new { message = "Invalid input", errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage) });
+            }
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                return Unauthorized(new { message = "Invalid user authentication" });
+            }
+
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found" });
+            }
+
+            // Verify current password
+            var isPasswordValid = await _userManager.CheckPasswordAsync(user, request.CurrentPassword);
+            if (!isPasswordValid)
+            {
+                return BadRequest(new { message = "Current password is incorrect" });
+            }
+
+            // Change password
+            var result = await _userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+            if (!result.Succeeded)
+            {
+                var errors = result.Errors.Select(e => e.Description).ToList();
+                _logger.LogError("Failed to change password for user {UserId}: {Errors}", userId, string.Join(", ", errors));
+                return BadRequest(new { message = "Failed to change password", errors });
+            }
+
+            user.UpdatedAt = DateTime.UtcNow;
+            await _userManager.UpdateAsync(user);
+
+            _logger.LogInformation("Password changed successfully for user {UserId}", userId);
+            return Ok(new { success = true, message = "Password changed successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error changing password for authenticated user");
+            return StatusCode(500, new { message = "An error occurred while changing password" });
+        }
+    }
 }
