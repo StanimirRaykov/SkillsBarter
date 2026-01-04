@@ -36,7 +36,7 @@ public class MilestoneServiceTests
     [Fact]
     public async Task CreateMilestoneAsync_ValidRequest_ReturnsMilestone()
     {
-        var (agreement, _, _) = await SetupTestDataAsync();
+        var (agreement, _, users) = await SetupTestDataAsync();
 
         var request = new CreateMilestoneRequest
         {
@@ -45,7 +45,7 @@ public class MilestoneServiceTests
             DueAt = DateTime.UtcNow.AddDays(7)
         };
 
-        var result = await _milestoneService.CreateMilestoneAsync(agreement.Id, request);
+        var result = await _milestoneService.CreateMilestoneAsync(agreement.Id, request, users.requester.Id);
 
         Assert.NotNull(result);
         Assert.Equal("First Milestone", result.Title);
@@ -56,9 +56,9 @@ public class MilestoneServiceTests
     [Fact]
     public async Task GetMilestoneByIdAsync_ExistingMilestone_ReturnsMilestone()
     {
-        var (agreement, milestone, _) = await SetupTestDataAsync();
+        var (agreement, milestone, users) = await SetupTestDataAsync();
 
-        var result = await _milestoneService.GetMilestoneByIdAsync(milestone.Id);
+        var result = await _milestoneService.GetMilestoneByIdAsync(milestone.Id, users.requester.Id);
 
         Assert.NotNull(result);
         Assert.Equal(milestone.Id, result.Id);
@@ -68,9 +68,9 @@ public class MilestoneServiceTests
     [Fact]
     public async Task GetMilestonesByAgreementIdAsync_ReturnsAllMilestones()
     {
-        var (agreement, milestone, _) = await SetupTestDataAsync();
+        var (agreement, milestone, users) = await SetupTestDataAsync();
 
-        var result = await _milestoneService.GetMilestonesByAgreementIdAsync(agreement.Id);
+        var result = await _milestoneService.GetMilestonesByAgreementIdAsync(agreement.Id, users.requester.Id);
 
         Assert.NotNull(result);
         Assert.Single(result);
@@ -80,7 +80,7 @@ public class MilestoneServiceTests
     [Fact]
     public async Task UpdateMilestoneAsync_ValidRequest_UpdatesMilestone()
     {
-        var (agreement, milestone, _) = await SetupTestDataAsync();
+        var (agreement, milestone, users) = await SetupTestDataAsync();
 
         var updateRequest = new UpdateMilestoneRequest
         {
@@ -88,7 +88,7 @@ public class MilestoneServiceTests
             DurationInDays = 14
         };
 
-        var result = await _milestoneService.UpdateMilestoneAsync(milestone.Id, updateRequest);
+        var result = await _milestoneService.UpdateMilestoneAsync(milestone.Id, updateRequest, users.requester.Id);
 
         Assert.NotNull(result);
         Assert.Equal("Updated Milestone", result.Title);
@@ -98,9 +98,9 @@ public class MilestoneServiceTests
     [Fact]
     public async Task DeleteMilestoneAsync_PendingMilestone_DeletesSuccessfully()
     {
-        var (agreement, milestone, _) = await SetupTestDataAsync();
+        var (agreement, milestone, users) = await SetupTestDataAsync();
 
-        var result = await _milestoneService.DeleteMilestoneAsync(milestone.Id);
+        var result = await _milestoneService.DeleteMilestoneAsync(milestone.Id, users.requester.Id);
 
         Assert.True(result);
         var deleted = await _context.Milestones.FindAsync(milestone.Id);
@@ -112,7 +112,7 @@ public class MilestoneServiceTests
     {
         var (agreement, milestone, users) = await SetupTestDataAsync();
 
-        var result = await _milestoneService.MarkMilestoneAsCompletedAsync(milestone.Id);
+        var result = await _milestoneService.MarkMilestoneAsCompletedAsync(milestone.Id, users.requester.Id);
 
         Assert.NotNull(result);
         Assert.Equal(MilestoneStatus.Completed, result.Status);
@@ -126,6 +126,35 @@ public class MilestoneServiceTests
                 It.IsAny<Guid?>()),
             Times.Exactly(2)
         );
+    }
+
+    [Fact]
+    public async Task CreateMilestoneAsync_UnauthorizedUser_ReturnsNull()
+    {
+        var (agreement, _, _) = await SetupTestDataAsync();
+        var unauthorizedUserId = Guid.NewGuid();
+
+        var request = new CreateMilestoneRequest
+        {
+            Title = "First Milestone",
+            DurationInDays = 7,
+            DueAt = DateTime.UtcNow.AddDays(7)
+        };
+
+        var result = await _milestoneService.CreateMilestoneAsync(agreement.Id, request, unauthorizedUserId);
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task GetMilestoneByIdAsync_UnauthorizedUser_ReturnsNull()
+    {
+        var (_, milestone, _) = await SetupTestDataAsync();
+        var unauthorizedUserId = Guid.NewGuid();
+
+        var result = await _milestoneService.GetMilestoneByIdAsync(milestone.Id, unauthorizedUserId);
+
+        Assert.Null(result);
     }
 
     private async Task<(Agreement agreement, Milestone milestone, (ApplicationUser requester, ApplicationUser provider) users)> SetupTestDataAsync()
