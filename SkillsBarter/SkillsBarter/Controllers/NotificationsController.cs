@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +22,10 @@ public class NotificationsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<NotificationsListResponseDto>> GetNotifications([FromQuery] bool unreadOnly = false, [FromQuery] int skip = 0, [FromQuery] int take = 20)
+    public async Task<ActionResult<NotificationsListResponseDto>> GetNotifications(
+        [FromQuery] bool unreadOnly = false,
+        [FromQuery][Range(0, int.MaxValue, ErrorMessage = "Skip must be non-negative")] int skip = 0,
+        [FromQuery][Range(1, 100, ErrorMessage = "Take must be between 1 and 100")] int take = 20)
     {
         Guid? userIdForLog = null;
 

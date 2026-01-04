@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -36,7 +37,9 @@ public class AdminController : ControllerBase
     }
 
     [HttpGet("users")]
-    public async Task<IActionResult> GetAllUsers([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<IActionResult> GetAllUsers(
+        [FromQuery][Range(1, int.MaxValue, ErrorMessage = "Page must be at least 1")] int page = 1,
+        [FromQuery][Range(1, 100, ErrorMessage = "PageSize must be between 1 and 100")] int pageSize = 20)
     {
         var query = _userManager.Users.AsNoTracking();
 
@@ -152,8 +155,8 @@ public class AdminController : ControllerBase
     [HttpGet("agreements")]
     public async Task<IActionResult> GetAllAgreements(
         [FromQuery] int? status = null,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery][Range(1, int.MaxValue, ErrorMessage = "Page must be at least 1")] int page = 1,
+        [FromQuery][Range(1, 100, ErrorMessage = "PageSize must be between 1 and 100")] int pageSize = 20)
     {
         Models.AgreementStatus? agreementStatus = status.HasValue
             ? (Models.AgreementStatus)status.Value
