@@ -22,7 +22,7 @@ public class MilestoneService : IMilestoneService
         _logger = logger;
     }
 
-    public async Task<MilestoneResponse?> CreateMilestoneAsync(Guid agreementId, CreateMilestoneRequest request)
+    public async Task<MilestoneResponse?> CreateMilestoneAsync(Guid agreementId, CreateMilestoneRequest request, Guid currentUserId)
     {
         try
         {
@@ -34,6 +34,12 @@ public class MilestoneService : IMilestoneService
             if (agreement == null)
             {
                 _logger.LogWarning("Create milestone failed: Agreement {AgreementId} not found", agreementId);
+                return null;
+            }
+
+            if (agreement.RequesterId != currentUserId && agreement.ProviderId != currentUserId)
+            {
+                _logger.LogWarning("Create milestone failed: User {UserId} is not authorized for agreement {AgreementId}", currentUserId, agreementId);
                 return null;
             }
 
@@ -79,17 +85,25 @@ public class MilestoneService : IMilestoneService
         }
     }
 
-    public async Task<MilestoneResponse?> GetMilestoneByIdAsync(Guid milestoneId)
+    public async Task<MilestoneResponse?> GetMilestoneByIdAsync(Guid milestoneId, Guid currentUserId)
     {
         try
         {
             var milestone = await _dbContext.Milestones
                 .Include(m => m.ResponsibleUser)
+                .Include(m => m.Agreement)
                 .FirstOrDefaultAsync(m => m.Id == milestoneId);
 
             if (milestone == null)
             {
                 _logger.LogWarning("Milestone {MilestoneId} not found", milestoneId);
+                return null;
+            }
+
+            // Authorization check: user must be part of the agreement
+            if (milestone.Agreement.RequesterId != currentUserId && milestone.Agreement.ProviderId != currentUserId)
+            {
+                _logger.LogWarning("Get milestone failed: User {UserId} is not authorized for milestone {MilestoneId}", currentUserId, milestoneId);
                 return null;
             }
 
@@ -102,10 +116,24 @@ public class MilestoneService : IMilestoneService
         }
     }
 
-    public async Task<List<MilestoneResponse>> GetMilestonesByAgreementIdAsync(Guid agreementId)
+    public async Task<List<MilestoneResponse>> GetMilestonesByAgreementIdAsync(Guid agreementId, Guid currentUserId)
     {
         try
         {
+            // Authorization check: verify user is part of the agreement
+            var agreement = await _dbContext.Agreements.FindAsync(agreementId);
+            if (agreement == null)
+            {
+                _logger.LogWarning("Get milestones failed: Agreement {AgreementId} not found", agreementId);
+                return new List<MilestoneResponse>();
+            }
+
+            if (agreement.RequesterId != currentUserId && agreement.ProviderId != currentUserId)
+            {
+                _logger.LogWarning("Get milestones failed: User {UserId} is not authorized for agreement {AgreementId}", currentUserId, agreementId);
+                return new List<MilestoneResponse>();
+            }
+
             var milestones = await _dbContext.Milestones
                 .Include(m => m.ResponsibleUser)
                 .Where(m => m.AgreementId == agreementId)
@@ -121,17 +149,25 @@ public class MilestoneService : IMilestoneService
         }
     }
 
-    public async Task<MilestoneResponse?> UpdateMilestoneAsync(Guid milestoneId, UpdateMilestoneRequest request)
+    public async Task<MilestoneResponse?> UpdateMilestoneAsync(Guid milestoneId, UpdateMilestoneRequest request, Guid currentUserId)
     {
         try
         {
             var milestone = await _dbContext.Milestones
                 .Include(m => m.ResponsibleUser)
+                .Include(m => m.Agreement)
                 .FirstOrDefaultAsync(m => m.Id == milestoneId);
 
             if (milestone == null)
             {
                 _logger.LogWarning("Update milestone failed: Milestone {MilestoneId} not found", milestoneId);
+                return null;
+            }
+
+            // Authorization check: user must be part of the agreement
+            if (milestone.Agreement.RequesterId != currentUserId && milestone.Agreement.ProviderId != currentUserId)
+            {
+                _logger.LogWarning("Update milestone failed: User {UserId} is not authorized for milestone {MilestoneId}", currentUserId, milestoneId);
                 return null;
             }
 
@@ -175,15 +211,24 @@ public class MilestoneService : IMilestoneService
         }
     }
 
-    public async Task<bool> DeleteMilestoneAsync(Guid milestoneId)
+    public async Task<bool> DeleteMilestoneAsync(Guid milestoneId, Guid currentUserId)
     {
         try
         {
-            var milestone = await _dbContext.Milestones.FindAsync(milestoneId);
+            var milestone = await _dbContext.Milestones
+                .Include(m => m.Agreement)
+                .FirstOrDefaultAsync(m => m.Id == milestoneId);
 
             if (milestone == null)
             {
                 _logger.LogWarning("Delete milestone failed: Milestone {MilestoneId} not found", milestoneId);
+                return false;
+            }
+
+            // Authorization check: user must be part of the agreement
+            if (milestone.Agreement.RequesterId != currentUserId && milestone.Agreement.ProviderId != currentUserId)
+            {
+                _logger.LogWarning("Delete milestone failed: User {UserId} is not authorized for milestone {MilestoneId}", currentUserId, milestoneId);
                 return false;
             }
 
@@ -207,7 +252,7 @@ public class MilestoneService : IMilestoneService
         }
     }
 
-    public async Task<MilestoneResponse?> MarkMilestoneAsCompletedAsync(Guid milestoneId)
+    public async Task<MilestoneResponse?> MarkMilestoneAsCompletedAsync(Guid milestoneId, Guid currentUserId)
     {
         try
         {
@@ -222,6 +267,13 @@ public class MilestoneService : IMilestoneService
             if (milestone == null)
             {
                 _logger.LogWarning("Mark milestone completed failed: Milestone {MilestoneId} not found", milestoneId);
+                return null;
+            }
+
+            // Authorization check: user must be part of the agreement
+            if (milestone.Agreement.RequesterId != currentUserId && milestone.Agreement.ProviderId != currentUserId)
+            {
+                _logger.LogWarning("Mark milestone completed failed: User {UserId} is not authorized for milestone {MilestoneId}", currentUserId, milestoneId);
                 return null;
             }
 

@@ -621,6 +621,47 @@ public class ProposalService : IProposalService
         };
     }
 
+    public async Task<ProposalListResponse> GetPendingProposalsAsync(
+        Guid userId,
+        int page,
+        int pageSize
+    )
+    {
+        // Filter proposals where the user needs to respond at the database level
+        var query = _dbContext
+            .Proposals.Include(p => p.Offer)
+            .Include(p => p.Proposer)
+            .Include(p => p.OfferOwner)
+            .Where(p =>
+                (p.ProposerId == userId || p.OfferOwnerId == userId) &&
+                (p.Status == ProposalStatus.PendingOfferOwnerReview || p.Status == ProposalStatus.PendingProposerReview) &&
+                p.PendingResponseFromUserId == userId
+            );
+
+        var totalCount = await query.CountAsync();
+
+        var proposals = await query
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var proposalResponses = new List<ProposalResponse>();
+        foreach (var proposal in proposals)
+        {
+            proposalResponses.Add(await MapToProposalResponseAsync(proposal));
+        }
+
+        return new ProposalListResponse
+        {
+            Proposals = proposalResponses,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+        };
+    }
+
     public async Task<ProposalListResponse> GetOfferProposalsAsync(
         Guid offerId,
         GetProposalsRequest request

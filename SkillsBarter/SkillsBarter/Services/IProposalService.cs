@@ -15,6 +15,7 @@ public interface IProposalService
     Task<ProposalResponse?> GetProposalByIdAsync(Guid proposalId);
     Task<ProposalDetailResponse?> GetProposalDetailByIdAsync(Guid proposalId);
     Task<ProposalListResponse> GetUserProposalsAsync(Guid userId, GetProposalsRequest request);
+    Task<ProposalListResponse> GetPendingProposalsAsync(Guid userId, int page, int pageSize);
     Task<ProposalListResponse> GetOfferProposalsAsync(Guid offerId, GetProposalsRequest request);
     Task<bool> CanUserRespondAsync(Guid proposalId, Guid userId);
     Task<int> MarkExpiredProposalsAsync();

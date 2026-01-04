@@ -527,24 +527,17 @@ public class ProposalsControllerTests
             Status = ProposalStatus.PendingOfferOwnerReview
         };
 
-        var otherProposal = new ProposalResponse
+        var pendingProposals = new ProposalListResponse
         {
-            Id = Guid.NewGuid(),
-            PendingResponseFromUserId = Guid.NewGuid(),
-            Status = ProposalStatus.PendingOfferOwnerReview
-        };
-
-        var allProposals = new ProposalListResponse
-        {
-            Proposals = new List<ProposalResponse> { pendingProposal, otherProposal },
-            TotalCount = 2,
+            Proposals = new List<ProposalResponse> { pendingProposal },
+            TotalCount = 1,
             Page = 1,
-            PageSize = 1000,
+            PageSize = 10,
             TotalPages = 1
         };
 
-        _proposalServiceMock.Setup(s => s.GetUserProposalsAsync(_currentUser.Id, It.IsAny<GetProposalsRequest>()))
-            .ReturnsAsync(allProposals);
+        _proposalServiceMock.Setup(s => s.GetPendingProposalsAsync(_currentUser.Id, It.IsAny<int>(), It.IsAny<int>()))
+            .ReturnsAsync(pendingProposals);
 
         var result = await _controller.GetPendingProposals();
 

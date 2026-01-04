@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -253,7 +254,9 @@ public class ProposalsController : ControllerBase
 
     [HttpGet("pending")]
     [Authorize]
-    public async Task<IActionResult> GetPendingProposals([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> GetPendingProposals(
+        [FromQuery][Range(1, int.MaxValue, ErrorMessage = "Page must be at least 1")] int page = 1,
+        [FromQuery][Range(1, 100, ErrorMessage = "PageSize must be between 1 and 100")] int pageSize = 10)
     {
         try
         {
@@ -263,35 +266,8 @@ public class ProposalsController : ControllerBase
                 return Unauthorized(new { message = "User not authenticated" });
             }
 
-            var request = new GetProposalsRequest
-            {
-                Page = page,
-                PageSize = pageSize
-            };
-
-            var allProposals = await _proposalService.GetUserProposalsAsync(currentUser.Id, new GetProposalsRequest
-            {
-                Page = 1,
-                // Get all proposals to filter pending ones
-                PageSize = 1000
-            });
-
-            var pendingProposals = allProposals.Proposals
-                .Where(p => p.PendingResponseFromUserId == currentUser.Id)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
-
-            var totalPending = allProposals.Proposals.Count(p => p.PendingResponseFromUserId == currentUser.Id);
-
-            return Ok(new ProposalListResponse
-            {
-                Proposals = pendingProposals,
-                TotalCount = totalPending,
-                Page = page,
-                PageSize = pageSize,
-                TotalPages = (int)Math.Ceiling(totalPending / (double)pageSize)
-            });
+            var result = await _proposalService.GetPendingProposalsAsync(currentUser.Id, page, pageSize);
+            return Ok(result);
         }
         catch (Exception ex)
         {
