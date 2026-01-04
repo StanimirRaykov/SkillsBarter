@@ -98,7 +98,10 @@ public class DisputesController : ControllerBase
     }
 
     [HttpPost("{id:guid}/accept")]
-    public async Task<IActionResult> AcceptDecision(Guid id, [FromBody] AcceptDecisionRequest request)
+    public async Task<IActionResult> AcceptDecision(
+        Guid id,
+        [FromBody] AcceptDecisionRequest request
+    )
     {
         if (!ModelState.IsValid)
             return BadRequest(new { message = "Invalid request", errors = ModelState });
