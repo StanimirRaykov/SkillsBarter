@@ -292,25 +292,12 @@ public class AuthController : ControllerBase
 
             _logger.LogInformation($"User {user.Email} registered successfully with ID: {user.Id}");
 
-            var roles = await _userManager.GetRolesAsync(user);
-            var token = _tokenService.GenerateAccessToken(user, roles);
-            var refreshToken = _tokenService.GenerateRefreshToken(user);
-
-            user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
-            user.UpdatedAt = DateTime.UtcNow;
-
-            await _userManager.UpdateAsync(user);
-
+            // User must verify email before getting tokens
             return Ok(
                 new AuthResponse
                 {
                     Success = true,
-                    Message =
-                        "User registered successfully. Please check your email to verify your account.",
-                    Token = token,
-                    RefreshToken = refreshToken,
-                    User = await MapToUserDto(user)
+                    Message = "Registration successful! Please check your email to verify your account before logging in."
                 }
             );
         }
@@ -318,25 +305,11 @@ public class AuthController : ControllerBase
         {
             _logger.LogError(ex, $"Error during post-registration setup for user {user.Email}");
 
-            var roles = await _userManager.GetRolesAsync(user);
-            var token = _tokenService.GenerateAccessToken(user, roles);
-            var refreshToken = _tokenService.GenerateRefreshToken(user);
-
-            user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
-            user.UpdatedAt = DateTime.UtcNow;
-
-            await _userManager.UpdateAsync(user);
-
             return Ok(
                 new AuthResponse
                 {
                     Success = true,
-                    Message =
-                        "User registered successfully. Please check your email to verify your account.",
-                    Token = token,
-                    RefreshToken = refreshToken,
-                    User = await MapToUserDto(user)
+                    Message = "Registration successful! Please check your email to verify your account before logging in."
                 }
             );
         }
@@ -362,6 +335,13 @@ public class AuthController : ControllerBase
             _logger.LogWarning($"Failed login attempt for user {request.Email}");
             return Unauthorized(new AuthResponse { Success = false, Message = "Invalid email or password" });
         }
+
+        if (!user.EmailConfirmed)
+        {
+            _logger.LogWarning($"Login attempt with unverified email: {request.Email}");
+            return Unauthorized(new AuthResponse { Success = false, Message = "Please verify your email address before logging in. Check your inbox for the verification link." });
+        }
+
         if (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow)
         {
             _logger.LogWarning($"Login attempt by banned user {request.Email}");
@@ -544,6 +524,52 @@ public class AuthController : ControllerBase
             success = true,
             message = "Email verified successfully. You can now log in."
         });
+    }
+
+    [HttpPost("resend-verification")]
+    public async Task<IActionResult> ResendVerificationEmail([FromBody] ForgotPasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return BadRequest(new { success = false, message = "Email is required" });
+        }
+
+        var user = await _userManager.FindByEmailAsync(request.Email);
+
+        // Don't reveal if email exists or not for security
+        if (user == null)
+        {
+            return Ok(new { success = true, message = "If an account exists with this email, a verification link has been sent." });
+        }
+
+        if (user.EmailConfirmed)
+        {
+            return Ok(new { success = true, message = "Email is already verified. You can log in." });
+        }
+
+        // Generate new verification token
+        string verificationToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+            .Replace('+', '-')
+            .Replace('/', '_')
+            .TrimEnd('=');
+
+        user.EmailVerificationToken = verificationToken;
+        user.EmailVerificationTokenExpiry = DateTime.UtcNow.AddHours(24);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userManager.UpdateAsync(user);
+
+        try
+        {
+            await _emailService.SendVerificationEmailAsync(user.Email!, user.Name, verificationToken);
+            _logger.LogInformation($"Verification email resent to {user.Email}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, $"Failed to resend verification email to {user.Email}");
+        }
+
+        return Ok(new { success = true, message = "If an account exists with this email, a verification link has been sent." });
     }
 
     [HttpPost("forgot-password")]
