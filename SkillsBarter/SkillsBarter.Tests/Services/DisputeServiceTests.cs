@@ -38,15 +38,18 @@ public class DisputeServiceTests
         );
     }
 
-    private async Task<(ApplicationUser complainer, ApplicationUser respondent, Agreement agreement)> SeedAgreementAsync(
-        AgreementStatus status = AgreementStatus.InProgress)
+    private async Task<(
+        ApplicationUser complainer,
+        ApplicationUser respondent,
+        Agreement agreement
+    )> SeedAgreementAsync(AgreementStatus status = AgreementStatus.InProgress)
     {
         var complainer = new ApplicationUser
         {
             Id = Guid.NewGuid(),
             Name = "Complainer",
             UserName = "complainer",
-            Email = "complainer@example.com"
+            Email = "complainer@example.com",
         };
 
         var respondent = new ApplicationUser
@@ -54,16 +57,22 @@ public class DisputeServiceTests
             Id = Guid.NewGuid(),
             Name = "Respondent",
             UserName = "respondent",
-            Email = "respondent@example.com"
+            Email = "respondent@example.com",
         };
 
         var category = new SkillCategory { Code = "TECH", Label = "Technology" };
-        var skill = new Skill { Id = 1, Name = "Programming", CategoryCode = category.Code, Category = category };
+        var skill = new Skill
+        {
+            Id = 1,
+            Name = "Programming",
+            CategoryCode = category.Code,
+            Category = category,
+        };
 
         var offerStatuses = new[]
         {
             new OfferStatus { Code = OfferStatusCode.Active, Label = "Active" },
-            new OfferStatus { Code = OfferStatusCode.UnderAgreement, Label = "Under Agreement" }
+            new OfferStatus { Code = OfferStatusCode.UnderAgreement, Label = "Under Agreement" },
         };
 
         _context.Users.AddRange(complainer, respondent);
@@ -80,7 +89,7 @@ public class DisputeServiceTests
             Description = "Test Description",
             StatusCode = OfferStatusCode.UnderAgreement,
             User = complainer,
-            Skill = skill
+            Skill = skill,
         };
         _context.Offers.Add(offer);
 
@@ -94,7 +103,7 @@ public class DisputeServiceTests
             CreatedAt = DateTime.UtcNow,
             Requester = complainer,
             Provider = respondent,
-            Offer = offer
+            Offer = offer,
         };
         _context.Agreements.Add(agreement);
 
@@ -110,7 +119,7 @@ public class DisputeServiceTests
         {
             AgreementId = Guid.NewGuid(),
             ReasonCode = DisputeReasonCode.WorkNotDelivered,
-            Description = "Test description for the dispute"
+            Description = "Test description for the dispute",
         };
 
         var result = await _disputeService.OpenDisputeAsync(request, Guid.NewGuid());
@@ -131,7 +140,7 @@ public class DisputeServiceTests
         {
             AgreementId = agreement.Id,
             ReasonCode = DisputeReasonCode.WorkNotDelivered,
-            Description = "Test description for the dispute"
+            Description = "Test description for the dispute",
         };
 
         var result = await _disputeService.OpenDisputeAsync(request, outsider.Id);
@@ -148,7 +157,7 @@ public class DisputeServiceTests
         {
             AgreementId = agreement.Id,
             ReasonCode = DisputeReasonCode.WorkNotDelivered,
-            Description = "Test description for the dispute"
+            Description = "Test description for the dispute",
         };
 
         var result = await _disputeService.OpenDisputeAsync(request, complainer.Id);
@@ -169,7 +178,7 @@ public class DisputeServiceTests
             RespondentId = respondent.Id,
             ReasonCode = DisputeReasonCode.WorkNotDelivered,
             Description = "Existing dispute",
-            Status = DisputeStatus.AwaitingResponse
+            Status = DisputeStatus.AwaitingResponse,
         };
         _context.Disputes.Add(existingDispute);
         await _context.SaveChangesAsync();
@@ -178,7 +187,7 @@ public class DisputeServiceTests
         {
             AgreementId = agreement.Id,
             ReasonCode = DisputeReasonCode.QualityIssues,
-            Description = "Another dispute attempt"
+            Description = "Another dispute attempt",
         };
 
         var result = await _disputeService.OpenDisputeAsync(request, complainer.Id);
@@ -198,8 +207,8 @@ public class DisputeServiceTests
             Description = "Test description for the dispute",
             Evidence = new List<EvidenceRequest>
             {
-                new() { Link = "http://evidence.com/1", Description = "Evidence 1" }
-            }
+                new() { Link = "http://evidence.com/1", Description = "Evidence 1" },
+            },
         };
 
         var result = await _disputeService.OpenDisputeAsync(request, complainer.Id);
@@ -214,19 +223,28 @@ public class DisputeServiceTests
         Assert.Equal(AgreementStatus.Disputed, storedAgreement!.Status);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(respondent.Id, NotificationType.DisputeOpened, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
-            Times.Once);
+            n =>
+                n.CreateAsync(
+                    respondent.Id,
+                    NotificationType.DisputeOpened,
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<Guid?>()
+                ),
+            Times.Once
+        );
     }
 
     [Fact]
     public async Task RespondToDisputeAsync_DisputeNotFound_ReturnsNull()
     {
-        var request = new RespondToDisputeRequest
-        {
-            Response = "Test response to dispute"
-        };
+        var request = new RespondToDisputeRequest { Response = "Test response to dispute" };
 
-        var result = await _disputeService.RespondToDisputeAsync(Guid.NewGuid(), request, Guid.NewGuid());
+        var result = await _disputeService.RespondToDisputeAsync(
+            Guid.NewGuid(),
+            request,
+            Guid.NewGuid()
+        );
 
         Assert.Null(result);
     }
@@ -248,14 +266,18 @@ public class DisputeServiceTests
             ResponseDeadline = DateTime.UtcNow.AddHours(72),
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
 
         var request = new RespondToDisputeRequest { Response = "Test response" };
 
-        var result = await _disputeService.RespondToDisputeAsync(dispute.Id, request, complainer.Id);
+        var result = await _disputeService.RespondToDisputeAsync(
+            dispute.Id,
+            request,
+            complainer.Id
+        );
 
         Assert.Null(result);
     }
@@ -277,14 +299,18 @@ public class DisputeServiceTests
             ResponseDeadline = DateTime.UtcNow.AddHours(72),
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
 
         var request = new RespondToDisputeRequest { Response = "Test response" };
 
-        var result = await _disputeService.RespondToDisputeAsync(dispute.Id, request, respondent.Id);
+        var result = await _disputeService.RespondToDisputeAsync(
+            dispute.Id,
+            request,
+            respondent.Id
+        );
 
         Assert.Null(result);
     }
@@ -307,7 +333,7 @@ public class DisputeServiceTests
             ResponseDeadline = DateTime.UtcNow.AddHours(72),
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
@@ -317,11 +343,15 @@ public class DisputeServiceTests
             Response = "My response to this dispute",
             Evidence = new List<EvidenceRequest>
             {
-                new() { Link = "http://evidence.com/response", Description = "Response evidence" }
-            }
+                new() { Link = "http://evidence.com/response", Description = "Response evidence" },
+            },
         };
 
-        var result = await _disputeService.RespondToDisputeAsync(dispute.Id, request, respondent.Id);
+        var result = await _disputeService.RespondToDisputeAsync(
+            dispute.Id,
+            request,
+            respondent.Id
+        );
 
         Assert.NotNull(result);
         Assert.NotNull(result!.ResponseReceivedAt);
@@ -329,13 +359,23 @@ public class DisputeServiceTests
         var storedDispute = await _context.Disputes.FindAsync(dispute.Id);
         Assert.NotNull(storedDispute!.ResponseReceivedAt);
 
-        var messages = await _context.DisputeMessages.Where(m => m.DisputeId == dispute.Id).ToListAsync();
+        var messages = await _context
+            .DisputeMessages.Where(m => m.DisputeId == dispute.Id)
+            .ToListAsync();
         Assert.Single(messages);
         Assert.Equal(request.Response, messages.First().Body);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(complainer.Id, NotificationType.DisputeResponse, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
-            Times.Once);
+            n =>
+                n.CreateAsync(
+                    complainer.Id,
+                    NotificationType.DisputeResponse,
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<Guid?>()
+                ),
+            Times.Once
+        );
     }
 
     [Fact]
@@ -356,20 +396,26 @@ public class DisputeServiceTests
             ResponseDeadline = DateTime.UtcNow.AddHours(72),
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
 
         var request = new RespondToDisputeRequest { Response = "My response" };
 
-        var result = await _disputeService.RespondToDisputeAsync(dispute.Id, request, respondent.Id);
+        var result = await _disputeService.RespondToDisputeAsync(
+            dispute.Id,
+            request,
+            respondent.Id
+        );
 
         Assert.NotNull(result);
         Assert.Equal(DisputeStatus.Resolved, result!.Status);
         Assert.Equal(DisputeResolution.FavorsRespondent, result.Resolution);
 
-        var penalties = await _context.Penalties.Where(p => p.DisputeId == dispute.Id).ToListAsync();
+        var penalties = await _context
+            .Penalties.Where(p => p.DisputeId == dispute.Id)
+            .ToListAsync();
         Assert.Single(penalties);
         Assert.Equal(complainer.Id, penalties.First().UserId);
     }
@@ -392,20 +438,26 @@ public class DisputeServiceTests
             ResponseDeadline = DateTime.UtcNow.AddHours(72),
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
 
         var request = new RespondToDisputeRequest { Response = "My response" };
 
-        var result = await _disputeService.RespondToDisputeAsync(dispute.Id, request, respondent.Id);
+        var result = await _disputeService.RespondToDisputeAsync(
+            dispute.Id,
+            request,
+            respondent.Id
+        );
 
         Assert.NotNull(result);
         Assert.Equal(DisputeStatus.Resolved, result!.Status);
         Assert.Equal(DisputeResolution.FavorsComplainer, result.Resolution);
 
-        var penalties = await _context.Penalties.Where(p => p.DisputeId == dispute.Id).ToListAsync();
+        var penalties = await _context
+            .Penalties.Where(p => p.DisputeId == dispute.Id)
+            .ToListAsync();
         Assert.Single(penalties);
         Assert.Equal(respondent.Id, penalties.First().UserId);
     }
@@ -428,22 +480,34 @@ public class DisputeServiceTests
             ResponseDeadline = DateTime.UtcNow.AddHours(72),
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
 
         var request = new RespondToDisputeRequest { Response = "My response" };
 
-        var result = await _disputeService.RespondToDisputeAsync(dispute.Id, request, respondent.Id);
+        var result = await _disputeService.RespondToDisputeAsync(
+            dispute.Id,
+            request,
+            respondent.Id
+        );
 
         Assert.NotNull(result);
         Assert.Equal(DisputeStatus.EscalatedToModerator, result!.Status);
         Assert.True(result.IsEscalated);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(It.IsAny<Guid>(), NotificationType.DisputeEscalated, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
-            Times.Exactly(2));
+            n =>
+                n.CreateAsync(
+                    It.IsAny<Guid>(),
+                    NotificationType.DisputeEscalated,
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<Guid?>()
+                ),
+            Times.Exactly(2)
+        );
     }
 
     [Fact]
@@ -451,7 +515,11 @@ public class DisputeServiceTests
     {
         var request = new EvidenceRequest { Link = "http://test.com", Description = "Test" };
 
-        var result = await _disputeService.AddEvidenceAsync(Guid.NewGuid(), request, Guid.NewGuid());
+        var result = await _disputeService.AddEvidenceAsync(
+            Guid.NewGuid(),
+            request,
+            Guid.NewGuid()
+        );
 
         Assert.Null(result);
     }
@@ -472,7 +540,7 @@ public class DisputeServiceTests
             Status = DisputeStatus.AwaitingResponse,
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
@@ -501,18 +569,25 @@ public class DisputeServiceTests
             Status = DisputeStatus.AwaitingResponse,
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
 
-        var request = new EvidenceRequest { Link = "http://newevidence.com", Description = "New evidence" };
+        var request = new EvidenceRequest
+        {
+            Link = "http://newevidence.com",
+            Description = "New evidence",
+        };
 
         var result = await _disputeService.AddEvidenceAsync(dispute.Id, request, complainer.Id);
 
         Assert.NotNull(result);
 
-        var evidence = await _context.Set<DisputeEvidence>().Where(e => e.DisputeId == dispute.Id).ToListAsync();
+        var evidence = await _context
+            .Set<DisputeEvidence>()
+            .Where(e => e.DisputeId == dispute.Id)
+            .ToListAsync();
         Assert.Single(evidence);
         Assert.Equal(request.Link, evidence.First().Link);
     }
@@ -541,7 +616,7 @@ public class DisputeServiceTests
             Status = DisputeStatus.AwaitingResponse,
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
@@ -571,7 +646,7 @@ public class DisputeServiceTests
             ResponseDeadline = DateTime.UtcNow.AddHours(72),
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
@@ -592,7 +667,7 @@ public class DisputeServiceTests
         {
             Id = Guid.NewGuid(),
             UserName = "moderator",
-            IsModerator = true
+            IsModerator = true,
         };
         _context.Users.Add(moderator);
 
@@ -607,7 +682,7 @@ public class DisputeServiceTests
             Status = DisputeStatus.EscalatedToModerator,
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
@@ -633,7 +708,7 @@ public class DisputeServiceTests
             Description = "Dispute 1",
             Status = DisputeStatus.AwaitingResponse,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute1);
         await _context.SaveChangesAsync();
@@ -661,7 +736,7 @@ public class DisputeServiceTests
         {
             Id = Guid.NewGuid(),
             UserName = "moderator",
-            IsModerator = true
+            IsModerator = true,
         };
         _context.Users.Add(moderator);
 
@@ -676,7 +751,7 @@ public class DisputeServiceTests
             Status = DisputeStatus.EscalatedToModerator,
             EscalatedAt = DateTime.UtcNow,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
 
         var nonEscalatedDispute = new Dispute
@@ -689,7 +764,7 @@ public class DisputeServiceTests
             Description = "Non-escalated dispute",
             Status = DisputeStatus.AwaitingResponse,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
 
         _context.Disputes.AddRange(escalatedDispute, nonEscalatedDispute);
@@ -707,10 +782,14 @@ public class DisputeServiceTests
         var request = new ModeratorDecisionRequest
         {
             Resolution = DisputeResolution.FavorsComplainer,
-            Notes = "Moderator notes"
+            Notes = "Moderator notes",
         };
 
-        var result = await _disputeService.MakeModeratorDecisionAsync(Guid.NewGuid(), request, Guid.NewGuid());
+        var result = await _disputeService.MakeModeratorDecisionAsync(
+            Guid.NewGuid(),
+            request,
+            Guid.NewGuid()
+        );
 
         Assert.Null(result);
     }
@@ -724,7 +803,7 @@ public class DisputeServiceTests
         {
             Id = Guid.NewGuid(),
             UserName = "moderator",
-            IsModerator = true
+            IsModerator = true,
         };
         _context.Users.Add(moderator);
 
@@ -739,7 +818,7 @@ public class DisputeServiceTests
             Status = DisputeStatus.AwaitingResponse,
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
@@ -747,10 +826,14 @@ public class DisputeServiceTests
         var request = new ModeratorDecisionRequest
         {
             Resolution = DisputeResolution.FavorsComplainer,
-            Notes = "Moderator notes"
+            Notes = "Moderator notes",
         };
 
-        var result = await _disputeService.MakeModeratorDecisionAsync(dispute.Id, request, moderator.Id);
+        var result = await _disputeService.MakeModeratorDecisionAsync(
+            dispute.Id,
+            request,
+            moderator.Id
+        );
 
         Assert.Null(result);
     }
@@ -764,7 +847,7 @@ public class DisputeServiceTests
         {
             Id = Guid.NewGuid(),
             UserName = "moderator",
-            IsModerator = true
+            IsModerator = true,
         };
         _context.Users.Add(moderator);
 
@@ -780,7 +863,7 @@ public class DisputeServiceTests
             Score = 50,
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
@@ -788,22 +871,36 @@ public class DisputeServiceTests
         var request = new ModeratorDecisionRequest
         {
             Resolution = DisputeResolution.FavorsComplainer,
-            Notes = "Respondent failed to deliver"
+            Notes = "Respondent failed to deliver",
         };
 
-        var result = await _disputeService.MakeModeratorDecisionAsync(dispute.Id, request, moderator.Id);
+        var result = await _disputeService.MakeModeratorDecisionAsync(
+            dispute.Id,
+            request,
+            moderator.Id
+        );
 
         Assert.NotNull(result);
         Assert.Equal(DisputeStatus.Resolved, result!.Status);
         Assert.Equal(DisputeResolution.FavorsComplainer, result.Resolution);
 
-        var penalties = await _context.Penalties.Where(p => p.DisputeId == dispute.Id).ToListAsync();
+        var penalties = await _context
+            .Penalties.Where(p => p.DisputeId == dispute.Id)
+            .ToListAsync();
         Assert.Single(penalties);
         Assert.Equal(respondent.Id, penalties.First().UserId);
 
         _notificationServiceMock.Verify(
-            n => n.CreateAsync(It.IsAny<Guid>(), NotificationType.DisputeResolved, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>()),
-            Times.Exactly(2));
+            n =>
+                n.CreateAsync(
+                    It.IsAny<Guid>(),
+                    NotificationType.DisputeResolved,
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<Guid?>()
+                ),
+            Times.Exactly(2)
+        );
     }
 
     [Fact]
@@ -815,7 +912,7 @@ public class DisputeServiceTests
         {
             Id = Guid.NewGuid(),
             UserName = "moderator",
-            IsModerator = true
+            IsModerator = true,
         };
         _context.Users.Add(moderator);
 
@@ -831,7 +928,7 @@ public class DisputeServiceTests
             Score = 50,
             Agreement = agreement,
             OpenedBy = complainer,
-            Respondent = respondent
+            Respondent = respondent,
         };
         _context.Disputes.Add(dispute);
         await _context.SaveChangesAsync();
@@ -839,16 +936,22 @@ public class DisputeServiceTests
         var request = new ModeratorDecisionRequest
         {
             Resolution = DisputeResolution.FavorsRespondent,
-            Notes = "Complainer's claim was invalid"
+            Notes = "Complainer's claim was invalid",
         };
 
-        var result = await _disputeService.MakeModeratorDecisionAsync(dispute.Id, request, moderator.Id);
+        var result = await _disputeService.MakeModeratorDecisionAsync(
+            dispute.Id,
+            request,
+            moderator.Id
+        );
 
         Assert.NotNull(result);
         Assert.Equal(DisputeStatus.Resolved, result!.Status);
         Assert.Equal(DisputeResolution.FavorsRespondent, result.Resolution);
 
-        var penalties = await _context.Penalties.Where(p => p.DisputeId == dispute.Id).ToListAsync();
+        var penalties = await _context
+            .Penalties.Where(p => p.DisputeId == dispute.Id)
+            .ToListAsync();
         Assert.Single(penalties);
         Assert.Equal(complainer.Id, penalties.First().UserId);
     }
@@ -868,7 +971,7 @@ public class DisputeServiceTests
             Description = "Expired dispute",
             Status = DisputeStatus.AwaitingResponse,
             ResponseDeadline = DateTime.UtcNow.AddHours(-1),
-            Agreement = agreement
+            Agreement = agreement,
         };
 
         var activeDispute = new Dispute
@@ -881,7 +984,7 @@ public class DisputeServiceTests
             Description = "Active dispute",
             Status = DisputeStatus.AwaitingResponse,
             ResponseDeadline = DateTime.UtcNow.AddHours(48),
-            Agreement = agreement
+            Agreement = agreement,
         };
 
         _context.Disputes.AddRange(expiredDispute, activeDispute);
@@ -896,7 +999,9 @@ public class DisputeServiceTests
         var storedActive = await _context.Disputes.FindAsync(activeDispute.Id);
         Assert.Equal(DisputeStatus.AwaitingResponse, storedActive!.Status);
 
-        var penalties = await _context.Penalties.Where(p => p.DisputeId == expiredDispute.Id).ToListAsync();
+        var penalties = await _context
+            .Penalties.Where(p => p.DisputeId == expiredDispute.Id)
+            .ToListAsync();
         Assert.Single(penalties);
         Assert.Equal(respondent.Id, penalties.First().UserId);
         Assert.Equal(PenaltyReason.NoDisputeResponse, penalties.First().Reason);
