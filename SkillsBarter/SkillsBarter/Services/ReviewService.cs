@@ -84,14 +84,6 @@ public class ReviewService : IReviewService
                 return null;
             }
 
-            if (agreement.ProviderId != request.RecipientId)
-            {
-                _logger.LogWarning("Create review failed: Recipient {RecipientId} is not the provider of agreement {AgreementId}. Only providers can be reviewed.",
-                    request.RecipientId, request.AgreementId);
-                return null;
-            }
-
-            
             var existingReview = await _dbContext.Reviews
                 .FirstOrDefaultAsync(r => r.ReviewerId == reviewerId &&
                                          r.AgreementId == request.AgreementId &&
