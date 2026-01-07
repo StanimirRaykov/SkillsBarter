@@ -150,12 +150,6 @@ public class AuthControllerTests
         _userManagerMock.Setup(u => u.AddToRoleAsync(It.IsAny<ApplicationUser>(), "Freemium"))
             .ReturnsAsync(IdentityResult.Success);
 
-        _userManagerMock.Setup(u => u.GetRolesAsync(It.IsAny<ApplicationUser>()))
-            .ReturnsAsync(new List<string> { "Freemium" });
-
-        _tokenServiceMock.Setup(t => t.GenerateAccessToken(It.IsAny<ApplicationUser>(), It.IsAny<IList<string>>()))
-            .Returns("test-jwt-token");
-
         var request = new RegisterRequest
         {
             Email = "new@example.com",
@@ -169,8 +163,8 @@ public class AuthControllerTests
         var ok = Assert.IsType<OkObjectResult>(result);
         var response = Assert.IsType<AuthResponse>(ok.Value);
         Assert.True(response.Success);
-        Assert.Equal("test-jwt-token", response.Token);
-        Assert.NotNull(response.User);
+        Assert.Null(response.Token);
+        Assert.Contains("check your email", response.Message);
 
         _emailServiceMock.Verify(
             e => e.SendVerificationEmailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()),
@@ -291,7 +285,8 @@ public class AuthControllerTests
             Id = Guid.NewGuid(),
             Email = "test@example.com",
             UserName = "test@example.com",
-            Name = "Test User"
+            Name = "Test User",
+            EmailConfirmed = true
         };
 
         _userManagerMock.Setup(u => u.FindByEmailAsync("test@example.com"))
@@ -305,6 +300,12 @@ public class AuthControllerTests
 
         _tokenServiceMock.Setup(t => t.GenerateAccessToken(user, It.IsAny<IList<string>>()))
             .Returns("test-jwt-token");
+
+        _tokenServiceMock.Setup(t => t.GenerateRefreshToken(user))
+            .Returns("test-refresh-token");
+
+        _userManagerMock.Setup(u => u.UpdateAsync(user))
+            .ReturnsAsync(IdentityResult.Success);
 
         var request = new LoginRequest { Email = "test@example.com", Password = "Password123!" };
 
@@ -563,9 +564,9 @@ public class AuthControllerTests
 
         var users = new List<ApplicationUser> { user }.AsQueryable();
         _userManagerMock.Setup(u => u.Users).Returns(users.BuildMockDbSet().Object);
-        _userManagerMock.Setup(u => u.GeneratePasswordResetTokenAsync(user))
-            .ReturnsAsync("identity-reset-token");
-        _userManagerMock.Setup(u => u.ResetPasswordAsync(user, "identity-reset-token", "NewPassword123!"))
+        _userManagerMock.Setup(u => u.RemovePasswordAsync(user))
+            .ReturnsAsync(IdentityResult.Success);
+        _userManagerMock.Setup(u => u.AddPasswordAsync(user, "NewPassword123!"))
             .ReturnsAsync(IdentityResult.Success);
         _userManagerMock.Setup(u => u.UpdateAsync(It.IsAny<ApplicationUser>()))
             .ReturnsAsync(IdentityResult.Success);

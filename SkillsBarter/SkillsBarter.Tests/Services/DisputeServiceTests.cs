@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -7,6 +8,7 @@ using SkillsBarter.Data;
 using SkillsBarter.DTOs;
 using SkillsBarter.Models;
 using SkillsBarter.Services;
+using SkillsBarter.Tests.TestUtils;
 using Xunit;
 
 namespace SkillsBarter.Tests.Services;
@@ -14,12 +16,14 @@ namespace SkillsBarter.Tests.Services;
 public class DisputeServiceTests
 {
     private readonly Mock<INotificationService> _notificationServiceMock = new();
+    private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
     private readonly Mock<ILogger<DisputeService>> _loggerMock = new();
     private ApplicationDbContext _context = null!;
     private DisputeService _disputeService = null!;
 
     public DisputeServiceTests()
     {
+        _userManagerMock = IdentityMocks.CreateUserManager<ApplicationUser>();
         SetupInMemoryDatabase();
     }
 
@@ -34,6 +38,7 @@ public class DisputeServiceTests
         _disputeService = new DisputeService(
             _context,
             _notificationServiceMock.Object,
+            _userManagerMock.Object,
             _loggerMock.Object
         );
     }
@@ -728,7 +733,7 @@ public class DisputeServiceTests
     }
 
     [Fact]
-    public async Task GetDisputesForModerationAsync_AsModerator_ReturnsEscalatedDisputes()
+    public async Task GetDisputesForModerationAsync_AsModerator_ReturnsAllDisputes()
     {
         var (complainer, respondent, agreement) = await SeedAgreementAsync();
 
@@ -740,6 +745,10 @@ public class DisputeServiceTests
         };
         _context.Users.Add(moderator);
 
+        _userManagerMock
+            .Setup(u => u.GetRolesAsync(It.Is<ApplicationUser>(user => user.Id == moderator.Id)))
+            .ReturnsAsync(new List<string> { "Moderator" });
+
         var escalatedDispute = new Dispute
         {
             Id = Guid.NewGuid(),
@@ -750,6 +759,7 @@ public class DisputeServiceTests
             Description = "Escalated dispute",
             Status = DisputeStatus.EscalatedToModerator,
             EscalatedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow.AddMinutes(-10),
             OpenedBy = complainer,
             Respondent = respondent,
         };
@@ -763,6 +773,7 @@ public class DisputeServiceTests
             ReasonCode = DisputeReasonCode.WorkNotDelivered,
             Description = "Non-escalated dispute",
             Status = DisputeStatus.AwaitingResponse,
+            CreatedAt = DateTime.UtcNow,
             OpenedBy = complainer,
             Respondent = respondent,
         };
@@ -772,8 +783,10 @@ public class DisputeServiceTests
 
         var result = await _disputeService.GetDisputesForModerationAsync(moderator.Id);
 
-        Assert.Single(result);
-        Assert.Equal(escalatedDispute.Id, result.First().Id);
+        // Should return all disputes, not just escalated ones
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, d => d.Id == escalatedDispute.Id);
+        Assert.Contains(result, d => d.Id == nonEscalatedDispute.Id);
     }
 
     [Fact]
@@ -795,7 +808,7 @@ public class DisputeServiceTests
     }
 
     [Fact]
-    public async Task MakeModeratorDecisionAsync_DisputeNotEscalated_ReturnsNull()
+    public async Task MakeModeratorDecisionAsync_DisputeAlreadyResolved_ReturnsNull()
     {
         var (complainer, respondent, agreement) = await SeedAgreementAsync();
 
@@ -807,6 +820,10 @@ public class DisputeServiceTests
         };
         _context.Users.Add(moderator);
 
+        _userManagerMock
+            .Setup(u => u.GetRolesAsync(It.Is<ApplicationUser>(user => user.Id == moderator.Id)))
+            .ReturnsAsync(new List<string> { "Moderator" });
+
         var dispute = new Dispute
         {
             Id = Guid.NewGuid(),
@@ -815,7 +832,7 @@ public class DisputeServiceTests
             RespondentId = respondent.Id,
             ReasonCode = DisputeReasonCode.WorkNotDelivered,
             Description = "Test dispute",
-            Status = DisputeStatus.AwaitingResponse,
+            Status = DisputeStatus.Resolved,
             Agreement = agreement,
             OpenedBy = complainer,
             Respondent = respondent,
@@ -850,6 +867,10 @@ public class DisputeServiceTests
             IsModerator = true,
         };
         _context.Users.Add(moderator);
+
+        _userManagerMock
+            .Setup(u => u.GetRolesAsync(It.Is<ApplicationUser>(user => user.Id == moderator.Id)))
+            .ReturnsAsync(new List<string> { "Moderator" });
 
         var dispute = new Dispute
         {
@@ -915,6 +936,10 @@ public class DisputeServiceTests
             IsModerator = true,
         };
         _context.Users.Add(moderator);
+
+        _userManagerMock
+            .Setup(u => u.GetRolesAsync(It.Is<ApplicationUser>(user => user.Id == moderator.Id)))
+            .ReturnsAsync(new List<string> { "Moderator" });
 
         var dispute = new Dispute
         {

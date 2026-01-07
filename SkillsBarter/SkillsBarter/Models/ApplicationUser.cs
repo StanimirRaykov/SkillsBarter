@@ -13,6 +13,10 @@ public class ApplicationUser : IdentityUser<Guid>
     public DateTime? EmailVerificationTokenExpiry { get; set; }
     public string? PasswordResetToken { get; set; }
     public DateTime? PasswordResetTokenExpiry { get; set; }
+    public string? PendingEmail { get; set; }
+    public string? EmailChangeToken { get; set; }
+    public DateTime? EmailChangeTokenExpiry { get; set; }
+    public string? PreferencesJson { get; set; }
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiry { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -21,6 +21,7 @@ public class UsersControllerTests
 {
     private readonly Mock<IUserService> _userServiceMock = new();
     private readonly Mock<IReviewService> _reviewServiceMock = new();
+    private readonly Mock<IEmailService> _emailServiceMock = new();
     private readonly Mock<UserManager<ApplicationUser>> _userManagerMock;
     private readonly Mock<RoleManager<IdentityRole<Guid>>> _roleManagerMock;
     private readonly Mock<IConfiguration> _configurationMock = new();
@@ -59,6 +60,7 @@ public class UsersControllerTests
         _controller = new UsersController(
             _userServiceMock.Object,
             _reviewServiceMock.Object,
+            _emailServiceMock.Object,
             _userManagerMock.Object,
             _dbContext,
             _roleSeeder,

@@ -644,80 +644,130 @@ public class AuthController : ControllerBase
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
-        if (!ModelState.IsValid)
+        _logger.LogInformation("=== PASSWORD RESET ENDPOINT HIT ===");
+
+        try
         {
-            var errors = ModelState.Values
-                .SelectMany(v => v.Errors)
-                .Select(e => e.ErrorMessage)
-                .ToList();
-            return BadRequest(new
+            if (!ModelState.IsValid)
             {
-                success = false,
-                message = "Validation failed",
-                errors
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                _logger.LogWarning($"Password reset validation failed: {string.Join(", ", errors)}");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Validation failed",
+                    errors
+                });
+            }
+
+            var token = NormalizeIncomingToken(request.Token);
+
+            _logger.LogInformation($"Password reset attempt - Received token length: {request.Token?.Length}, Normalized token length: {token?.Length}");
+
+            var user = await _userManager.Users
+                .FirstOrDefaultAsync(u => u.PasswordResetToken == token);
+
+            if (user == null)
+            {
+                _logger.LogWarning($"Password reset attempted with invalid token - no matching user found. Token (first 10 chars): {token?.Substring(0, Math.Min(10, token?.Length ?? 0))}");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Invalid or expired reset token"
+                });
+            }
+
+            _logger.LogInformation($"Password reset - User found: {user.Email}, Token expiry: {user.PasswordResetTokenExpiry}");
+
+            if (user.PasswordResetTokenExpiry == null || user.PasswordResetTokenExpiry < DateTime.UtcNow)
+            {
+                _logger.LogWarning($"Password reset attempted with expired token for user {user.Email}");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Invalid or expired reset token"
+                });
+            }
+
+            // Validate new password meets requirements
+            var passwordValidator = new PasswordValidator<ApplicationUser>();
+            var validationResult = await passwordValidator.ValidateAsync(_userManager, user, request.NewPassword);
+
+            if (!validationResult.Succeeded)
+            {
+                var errors = validationResult.Errors.Select(e => e.Description).ToList();
+                _logger.LogError($"Password validation failed for user {user.Email}: {string.Join(", ", errors)}");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Password does not meet requirements",
+                    errors
+                });
+            }
+
+            // Remove old password and set new one (since we validated with custom token)
+            var removeResult = await _userManager.RemovePasswordAsync(user);
+            if (!removeResult.Succeeded)
+            {
+                var errors = removeResult.Errors.Select(e => e.Description).ToList();
+                _logger.LogError($"Failed to remove old password for user {user.Email}: {string.Join(", ", errors)}");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Failed to reset password",
+                    errors
+                });
+            }
+
+            var addResult = await _userManager.AddPasswordAsync(user, request.NewPassword);
+            if (!addResult.Succeeded)
+            {
+                var errors = addResult.Errors.Select(e => e.Description).ToList();
+                _logger.LogError($"Failed to set new password for user {user.Email}: {string.Join(", ", errors)}");
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Failed to reset password",
+                    errors
+                });
+            }
+
+            user.PasswordResetToken = null;
+            user.PasswordResetTokenExpiry = null;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _userManager.UpdateAsync(user);
+
+            _logger.LogInformation($"Password reset successfully for user {user.Email}");
+
+            return Ok(new
+            {
+                success = true,
+                message = "Password has been reset successfully. You can now log in with your new password."
             });
         }
-
-        var token = NormalizeIncomingToken(request.Token);
-
-        var user = await _userManager.Users
-            .FirstOrDefaultAsync(u => u.PasswordResetToken == token);
-
-        if (user == null)
+        catch (Exception ex)
         {
-            _logger.LogWarning($"Password reset attempted with invalid token");
-            return BadRequest(new
+            _logger.LogError(ex, "Unhandled exception in ResetPassword");
+            return StatusCode(500, new
             {
                 success = false,
-                message = "Invalid or expired reset token"
+                message = "An unexpected error occurred while resetting password"
             });
         }
-
-        if (user.PasswordResetTokenExpiry == null || user.PasswordResetTokenExpiry < DateTime.UtcNow)
-        {
-            _logger.LogWarning($"Password reset attempted with expired token for user {user.Email}");
-            return BadRequest(new
-            {
-                success = false,
-                message = "Invalid or expired reset token"
-            });
-        }
-
-        var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-        var result = await _userManager.ResetPasswordAsync(user, resetToken, request.NewPassword);
-
-        if (!result.Succeeded)
-        {
-            var errors = result.Errors.Select(e => e.Description).ToList();
-            _logger.LogError($"Failed to reset password for user {user.Email}: {string.Join(", ", errors)}");
-            return BadRequest(new
-            {
-                success = false,
-                message = "Failed to reset password",
-                errors
-            });
-        }
-
-        user.PasswordResetToken = null;
-        user.PasswordResetTokenExpiry = null;
-        user.UpdatedAt = DateTime.UtcNow;
-
-        await _userManager.UpdateAsync(user);
-
-        _logger.LogInformation($"Password reset successfully for user {user.Email}");
-
-        return Ok(new
-        {
-            success = true,
-            message = "Password has been reset successfully. You can now log in with your new password."
-        });
     }
 
     private static string NormalizeIncomingToken(string token)
     {
+        // Token is URL-safe base64 (uses - and _ instead of + and /)
+        // Just trim whitespace and return as-is
+        token = token?.Trim() ?? string.Empty;
 
-        token = token.Trim().Replace(' ', '+');
-        const string allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=+/_";
+        // Remove any non-base64 characters (URL-safe variant: A-Za-z0-9-_)
+        const string allowed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_=";
         var i = 0;
         while (i < token.Length && allowed.IndexOf(token[i]) >= 0)
         {

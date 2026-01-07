@@ -164,6 +164,13 @@ public class DisputesController : ControllerBase
         if (user == null)
             return Unauthorized(new { message = "User not authenticated" });
 
+        // Check if user is moderator OR admin
+        var roles = await _userManager.GetRolesAsync(user);
+        var isAuthorized = user.IsModerator || roles.Contains(AppRoles.Admin);
+
+        if (!isAuthorized)
+            return Forbid();
+
         var result = await _disputeService.GetDisputesForModerationAsync(user.Id);
         return Ok(result);
     }
