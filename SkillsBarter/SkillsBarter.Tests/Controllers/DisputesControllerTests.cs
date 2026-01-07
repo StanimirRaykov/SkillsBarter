@@ -413,6 +413,10 @@ public class DisputesControllerTests
             .Setup(u => u.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
             .ReturnsAsync(_currentUser);
 
+        _userManagerMock
+            .Setup(u => u.GetRolesAsync(_currentUser))
+            .ReturnsAsync(new List<string> { "Freemium" });
+
         var result = await _controller.GetDisputesForModeration();
 
         Assert.IsType<ForbidResult>(result);
@@ -425,6 +429,10 @@ public class DisputesControllerTests
         _userManagerMock
             .Setup(u => u.GetUserAsync(It.IsAny<ClaimsPrincipal>()))
             .ReturnsAsync(moderator);
+
+        _userManagerMock
+            .Setup(u => u.GetRolesAsync(moderator))
+            .ReturnsAsync(new List<string> { "Moderator" });
 
         var disputes = new List<DisputeListResponse>
         {
