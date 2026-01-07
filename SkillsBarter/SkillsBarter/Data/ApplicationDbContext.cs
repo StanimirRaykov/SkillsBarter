@@ -31,6 +31,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<ProposalHistory> ProposalHistories { get; set; }
     public DbSet<Deliverable> Deliverables { get; set; }
     public DbSet<Penalty> Penalties { get; set; }
+    public DbSet<CounterOffer> CounterOffers => Set<CounterOffer>();
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -104,7 +106,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .WithMany(c => c.Skills)
                 .HasForeignKey(e => e.CategoryCode)
                 .OnDelete(DeleteBehavior.Restrict);
-        });
+        }); 
+        
 
         modelBuilder.Entity<UserSkill>(entity =>
         {
@@ -129,6 +132,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasForeignKey(e => e.SkillId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
+        modelBuilder.Entity<CounterOffer>()
+            .HasOne(c => c.Proposal)
+            .WithMany()
+            .HasForeignKey(c => c.ProposalId);
 
         modelBuilder.Entity<OfferStatus>(entity =>
         {
