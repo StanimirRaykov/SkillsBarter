@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SkillsBarter.Constants;
 using SkillsBarter.Data;
@@ -10,16 +11,19 @@ public class DisputeService : IDisputeService
 {
     private readonly ApplicationDbContext _dbContext;
     private readonly INotificationService _notificationService;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<DisputeService> _logger;
     private const int ResponseDeadlineHours = 72;
 
     public DisputeService(
         ApplicationDbContext dbContext,
         INotificationService notificationService,
+        UserManager<ApplicationUser> userManager,
         ILogger<DisputeService> logger)
     {
         _dbContext = dbContext;
         _notificationService = notificationService;
+        _userManager = userManager;
         _logger = logger;
     }
 
@@ -461,8 +465,14 @@ public class DisputeService : IDisputeService
 
     public async Task<List<DisputeListResponse>> GetDisputesForModerationAsync(Guid moderatorId)
     {
-        var isModerator = await _dbContext.Users.AsNoTracking().AnyAsync(u => u.Id == moderatorId && u.IsModerator);
-        if (!isModerator)
+        var user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == moderatorId);
+        if (user == null)
+            return new List<DisputeListResponse>();
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var isAuthorized = user.IsModerator || roles.Contains(AppRoles.Admin);
+
+        if (!isAuthorized)
             return new List<DisputeListResponse>();
 
         await ProcessExpiredDisputesAsync();
@@ -471,8 +481,7 @@ public class DisputeService : IDisputeService
             .AsNoTracking()
             .Include(d => d.OpenedBy)
             .Include(d => d.Respondent)
-            .Where(d => d.Status == DisputeStatus.EscalatedToModerator)
-            .OrderByDescending(d => d.EscalatedAt)
+            .OrderByDescending(d => d.CreatedAt)
             .ToListAsync();
 
         return disputes.Select(d => MapToListResponse(d, moderatorId, true)).ToList();
@@ -480,10 +489,19 @@ public class DisputeService : IDisputeService
 
     public async Task<DisputeResponse?> MakeModeratorDecisionAsync(Guid disputeId, ModeratorDecisionRequest request, Guid moderatorId)
     {
-        var isModerator = await _dbContext.Users.AnyAsync(u => u.Id == moderatorId && u.IsModerator);
-        if (!isModerator)
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == moderatorId);
+        if (user == null)
         {
-            _logger.LogWarning("Moderator decision failed: User {UserId} is not a moderator", moderatorId);
+            _logger.LogWarning("Moderator decision failed: User {UserId} not found", moderatorId);
+            return null;
+        }
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var isAuthorized = user.IsModerator || roles.Contains(AppRoles.Admin);
+
+        if (!isAuthorized)
+        {
+            _logger.LogWarning("Moderator decision failed: User {UserId} is not a moderator or admin", moderatorId);
             return null;
         }
 
@@ -495,9 +513,9 @@ public class DisputeService : IDisputeService
             return null;
         }
 
-        if (dispute.Status != DisputeStatus.EscalatedToModerator)
+        if (dispute.Status == DisputeStatus.Resolved || dispute.Status == DisputeStatus.Closed)
         {
-            _logger.LogWarning("Moderator decision failed: Dispute {DisputeId} not escalated", disputeId);
+            _logger.LogWarning("Moderator decision failed: Dispute {DisputeId} already resolved or closed", disputeId);
             return null;
         }
 
@@ -633,11 +651,22 @@ public class DisputeService : IDisputeService
         }
         else
         {
-            dispute.Status = DisputeStatus.UnderReview;
-            dispute.ClosedAt = null;
+            dispute.Status = DisputeStatus.Resolved;
+            dispute.ClosedAt = DateTime.UtcNow;
+            dispute.ComplainerDecision = DisputePartyDecision.Accept;
+            dispute.RespondentDecision = DisputePartyDecision.Accept;
             dispute.ResolutionSummary = decision == DisputeSystemDecision.ProviderWins
-                ? "System decision favors the provider based on scoring."
-                : "System decision favors the complainer based on scoring.";
+                ? "Auto-resolved: Score indicates clear evidence favoring the provider."
+                : "Auto-resolved: Score indicates clear evidence favoring the complainer.";
+
+            if (dispute.Resolution == DisputeResolution.FavorsComplainer)
+            {
+                CreatePenalty(dispute.RespondentId, dispute.AgreementId, dispute.Id, PenaltyReason.DisputeLostFullPenalty);
+            }
+            else if (dispute.Resolution == DisputeResolution.FavorsRespondent)
+            {
+                CreatePenalty(dispute.OpenedById, dispute.AgreementId, dispute.Id, PenaltyReason.DisputeLostFullPenalty);
+            }
         }
     }
 

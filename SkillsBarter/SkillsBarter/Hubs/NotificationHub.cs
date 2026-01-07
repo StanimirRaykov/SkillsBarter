@@ -1,6 +1,6 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
-using System.Security.Claims;
 
 namespace SkillsBarter.Hubs;
 
@@ -20,8 +20,11 @@ public class NotificationHub : Hub
         if (userId.HasValue)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId.Value}");
-            _logger.LogInformation("User {UserId} connected to NotificationHub with connection {ConnectionId}",
-                userId.Value, Context.ConnectionId);
+            _logger.LogInformation(
+                "User {UserId} connected to NotificationHub with connection {ConnectionId}",
+                userId.Value,
+                Context.ConnectionId
+            );
         }
         else
         {
@@ -36,8 +39,11 @@ public class NotificationHub : Hub
         var userId = GetUserId();
         if (userId.HasValue)
         {
-            _logger.LogInformation("User {UserId} disconnected from NotificationHub with connection {ConnectionId}",
-                userId.Value, Context.ConnectionId);
+            _logger.LogInformation(
+                "User {UserId} disconnected from NotificationHub with connection {ConnectionId}",
+                userId.Value,
+                Context.ConnectionId
+            );
         }
 
         if (exception != null)
