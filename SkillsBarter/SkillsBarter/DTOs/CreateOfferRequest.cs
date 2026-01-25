@@ -13,4 +13,7 @@ public class CreateOfferRequest
 
     [Range(1, int.MaxValue, ErrorMessage = "SkillId must be a valid skill")]
     public int SkillId { get; set; }
+
+    public List<string>? DesiredCategoryCodes { get; set; }
+
 }

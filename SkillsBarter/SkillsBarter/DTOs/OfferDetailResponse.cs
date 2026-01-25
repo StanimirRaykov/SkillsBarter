@@ -14,6 +14,7 @@ public class OfferDetailResponse
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public OfferOwnerInfo Owner { get; set; } = null!;
+    public List<string> DesiredCategoryCodes { get; set; } = new();
 }
 
 public class OfferOwnerInfo

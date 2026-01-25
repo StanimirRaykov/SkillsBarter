@@ -14,4 +14,5 @@ public class OfferResponse
     public string? StatusLabel { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public List<string> DesiredCategoryCodes { get; set; } = new();
 }

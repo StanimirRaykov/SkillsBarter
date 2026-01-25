@@ -7,4 +7,5 @@ public interface ISkillService
     Task<SkillResponse?> CreateSkillAsync(CreateSkillRequest request);
     Task<PaginatedResponse<SkillResponse>> GetSkillsAsync(GetSkillsRequest request);
     Task<SkillResponse?> GetSkillByIdAsync(int id);
+    Task<List<CategoryResponse>> GetCategoriesAsync();
 }

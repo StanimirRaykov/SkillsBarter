@@ -92,4 +92,19 @@ public class SkillsController : ControllerBase
             return StatusCode(500, new { message = "An error occurred while retrieving the skill" });
         }
     }
+
+    [HttpGet("categories")]
+    public async Task<IActionResult> GetCategories()
+    {
+        try
+        {
+            var categories = await _skillService.GetCategoriesAsync();
+            return Ok(categories);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving categories");
+            return StatusCode(500, new { message = "An error occurred while retrieving categories" });
+        }
+    }
 }

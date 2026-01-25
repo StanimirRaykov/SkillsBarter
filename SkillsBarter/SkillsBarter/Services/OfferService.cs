@@ -69,6 +69,24 @@ public class OfferService : IOfferService
             };
 
             _dbContext.Offers.Add(offer);
+
+            if (request.DesiredCategoryCodes != null && request.DesiredCategoryCodes.Any())
+            {
+                var validCategories = await _dbContext.SkillCategories
+                    .Where(c => request.DesiredCategoryCodes.Contains(c.Code))
+                    .Select(c => c.Code)
+                    .ToListAsync();
+
+                foreach (var categoryCode in validCategories)
+                {
+                    offer.DesiredCategories.Add(new OfferDesiredCategory
+                    {
+                        OfferId = offer.Id,
+                        CategoryCode = categoryCode
+                    });
+                }
+            }
+
             await _dbContext.SaveChangesAsync();
 
             _logger.LogInformation("Offer created successfully: {OfferId} by user {UserId}", offer.Id, userId);
@@ -95,6 +113,7 @@ public class OfferService : IOfferService
                 .Include(o => o.Status)
                 .Include(o => o.Skill)
                 .Include(o => o.User)
+                .Include(o => o.DesiredCategories)
                 .AsQueryable();
 
             if (request.UserId.HasValue)
@@ -139,8 +158,14 @@ public class OfferService : IOfferService
                 );
             }
 
+            if (request.DesiredCategoryCodes != null && request.DesiredCategoryCodes.Any())
+            {
+                _logger.LogInformation("Filtering by DesiredCategoryCodes: {Categories}", string.Join(", ", request.DesiredCategoryCodes));
+                query = query.Where(o => o.DesiredCategories.Any(dc => request.DesiredCategoryCodes.Contains(dc.CategoryCode)));
+            }
+
             var total = await query.CountAsync();
-            _logger.LogInformation("🔎 Found {Total} offers matching criteria", total);
+            _logger.LogInformation("Found {Total} offers matching criteria", total);
 
             var offers = await query
                 .OrderByDescending(o => o.CreatedAt)
@@ -177,6 +202,7 @@ public class OfferService : IOfferService
                 .Include(o => o.Status)
                 .Include(o => o.Skill)
                 .Include(o => o.User)
+                .Include(o => o.DesiredCategories)
                 .Where(o => o.UserId == userId)
                 .AsQueryable();
 
@@ -200,6 +226,11 @@ public class OfferService : IOfferService
                     o.Title.ToLower().Contains(keyword) ||
                     (o.Description != null && o.Description.ToLower().Contains(keyword))
                 );
+            }
+
+            if (request.DesiredCategoryCodes != null && request.DesiredCategoryCodes.Any())
+            {
+                query = query.Where(o => o.DesiredCategories.Any(dc => request.DesiredCategoryCodes.Contains(dc.CategoryCode)));
             }
 
             var total = await query.CountAsync();
@@ -237,6 +268,7 @@ public class OfferService : IOfferService
                 .Include(o => o.Status)
                 .Include(o => o.Skill)
                 .Include(o => o.Agreements)
+                .Include(o => o.DesiredCategories)
                 .FirstOrDefaultAsync(o => o.Id == offerId);
 
             if (offer == null)
@@ -313,7 +345,8 @@ public class OfferService : IOfferService
                     Id = offer.User.Id,
                     Name = offer.User.Name,
                     Rating = averageRating
-                }
+                },
+                DesiredCategoryCodes = offer.DesiredCategories?.Select(dc => dc.CategoryCode).ToList() ?? new List<string>()
             };
         }
         catch (Exception ex)
@@ -330,6 +363,7 @@ public class OfferService : IOfferService
             var offer = await _dbContext.Offers
                 .Include(o => o.Status)
                 .Include(o => o.Skill)
+                .Include(o => o.DesiredCategories)
                 .FirstOrDefaultAsync(o => o.Id == offerId);
 
             if (offer == null)
@@ -375,6 +409,28 @@ public class OfferService : IOfferService
                 {
                     _logger.LogWarning("Update offer failed: Invalid status code {StatusCode}", request.StatusCode);
                     return null;
+                }
+            }
+
+            if (request.DesiredCategoryCodes != null)
+            {
+                offer.DesiredCategories.Clear();
+
+                if (request.DesiredCategoryCodes.Any())
+                {
+                    var validCategories = await _dbContext.SkillCategories
+                        .Where(c => request.DesiredCategoryCodes.Contains(c.Code))
+                        .Select(c => c.Code)
+                        .ToListAsync();
+
+                    foreach (var categoryCode in validCategories)
+                    {
+                        offer.DesiredCategories.Add(new OfferDesiredCategory
+                        {
+                            OfferId = offer.Id,
+                            CategoryCode = categoryCode
+                        });
+                    }
                 }
             }
 
@@ -532,6 +588,7 @@ public class OfferService : IOfferService
             StatusCode = offer.StatusCode.ToString(),
             StatusLabel = offer.Status?.Label ?? offer.StatusCode.ToString(),
             CreatedAt = offer.CreatedAt,
+            DesiredCategoryCodes = offer.DesiredCategories?.Select(dc => dc.CategoryCode).ToList() ?? new List<string>(),
             UpdatedAt = offer.UpdatedAt
         };
     }

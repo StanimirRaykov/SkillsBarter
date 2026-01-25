@@ -17,4 +17,5 @@ public class Offer
     public virtual ICollection<RequestThread> RequestThreads { get; set; } = new List<RequestThread>();
     public virtual ICollection<Agreement> Agreements { get; set; } = new List<Agreement>();
     public virtual ICollection<Proposal> Proposals { get; set; } = new List<Proposal>();
+    public virtual ICollection<OfferDesiredCategory> DesiredCategories { get; set; } = new List<OfferDesiredCategory>();
 }

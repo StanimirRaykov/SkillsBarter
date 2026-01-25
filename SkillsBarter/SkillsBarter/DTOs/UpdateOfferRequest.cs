@@ -6,4 +6,5 @@ public class UpdateOfferRequest
     public string? Description { get; set; }
     public int? SkillId { get; set; }
     public string? StatusCode { get; set; }
+    public List<string> DesiredCategoryCodes { get; set; } = new();
 }

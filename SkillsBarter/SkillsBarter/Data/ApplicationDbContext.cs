@@ -31,6 +31,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<ProposalHistory> ProposalHistories { get; set; }
     public DbSet<Deliverable> Deliverables { get; set; }
     public DbSet<Penalty> Penalties { get; set; }
+    public DbSet<OfferDesiredCategory> OfferDesiredCategories { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -192,6 +193,27 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityR
                 .HasForeignKey(e => e.StatusCode)
                 .OnDelete(DeleteBehavior.Restrict);
         });
+
+        modelBuilder.Entity<OfferDesiredCategory>(entity =>
+        {
+            entity.ToTable("offer_desired_categories");
+            entity.HasKey(e => new { e.OfferId, e.CategoryCode });
+            entity.Property(e => e.OfferId).HasColumnName("offer_id");
+            entity.Property(e => e.CategoryCode).HasColumnName("category_code");
+
+            entity
+                .HasOne(e => e.Offer)
+                .WithMany(o => o.DesiredCategories)
+                .HasForeignKey(e => e.OfferId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity
+                .HasOne(e => e.Category)
+                .WithMany()
+                .HasForeignKey(e => e.CategoryCode)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
 
         modelBuilder.Entity<RequestThread>(entity =>
         {

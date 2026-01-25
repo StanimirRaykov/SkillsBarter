@@ -135,6 +135,20 @@ public class SkillService : ISkillService
         }
     }
 
+    public async Task<List<CategoryResponse>> GetCategoriesAsync()
+    {
+        var categories = await _dbContext.SkillCategories
+            .OrderBy(c => c.Label)
+            .Select(c => new CategoryResponse
+            {
+                Code = c.Code,
+                Label = c.Label
+            })
+            .ToListAsync();
+
+        return categories;
+    }
+
     private SkillResponse MapToSkillResponse(Skill skill, string categoryLabel)
     {
         return new SkillResponse

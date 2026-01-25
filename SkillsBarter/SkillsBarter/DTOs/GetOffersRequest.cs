@@ -6,6 +6,7 @@ public class GetOffersRequest
     public int? SkillId { get; set; }
     public string? Skill { get; set; }
     public Guid? UserId { get; set; }
+    public List<string>? DesiredCategoryCodes { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 
